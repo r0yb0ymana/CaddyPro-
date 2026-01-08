@@ -1,0 +1,44 @@
+name: Android Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_track:
+        description: 'Source Track (e.g. internal, alpha)'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+
+jobs:
+  promote:
+    name: Promote to Production
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install Fastlane
+        run: gem install fastlane
+
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper
+
+      - name: Promote Release
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+        run: fastlane promote from:${{ inputs.from_track }} to:production

@@ -1,0 +1,51 @@
+name: App
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: 17.0
+  xcodeVersion: 15.0
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+packages:
+  App:
+    path: App
+
+targets:
+  App:
+    type: application
+    platform: iOS
+    deploymentTarget: 17.0
+    sources: []  # Sources are managed by the Swift Package
+    dependencies:
+      - package: App
+        product: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.app
+        INFOPLIST_FILE: Info.plist
+        marketingVersion: 1.0.0
+        currentProjectVersion: 1
+      configs:
+        debug:
+          DEBUG_INFORMATION_FORMAT: dwarf
+        release:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
+schemes:
+  App:
+    build:
+      targets:
+        App: all
+    run:
+      config: debug
+    test:
+      config: debug
+      targets:
+        - name: AppTests
+    profile:
+      config: release
+    analyze:
+      config: debug
+    archive:
+      config: release

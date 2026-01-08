@@ -1,0 +1,49 @@
+default_platform(:ios)
+
+platform :ios do
+  before_all do
+    # Only try to load API key if environment variables are present (e.g. CI)
+    if ENV["APP_STORE_CONNECT_API_KEY_ID"]
+      app_store_connect_api_key(
+        key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+        issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
+        key_content: ENV["APP_STORE_CONNECT_API_KEY_BASE64"],
+        is_key_content_base64: true,
+        duration: 1200, 
+        in_house: false
+      )
+    end
+  end
+
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    increment_build_number(xcodeproj: "App.xcodeproj")
+    build_app(scheme: "App")
+    upload_to_testflight
+  end
+
+  desc "Push a new release build to the App Store"
+  # Usage: fastlane release submit_for_review:true
+  lane :release do |options|
+    submit = options[:submit_for_review] ? true : false
+    
+    ensure_git_status_clean
+    changelog = changelog_from_git_commits(commits_count: 10, merge_commit_filtering: "exclude_merges")
+    
+    increment_build_number(xcodeproj: "App.xcodeproj")
+    build_app(scheme: "App")
+    
+    upload_to_app_store(
+      force: true,
+      skip_screenshots: true,
+      release_notes: changelog,
+      submit_for_review: submit,
+      reject_if_possible: true # Reject previous binary if waiting for review
+    )
+  end
+  
+  desc "Run tests"
+  lane :test do
+    run_tests(scheme: "App")
+  end
+end
