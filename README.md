@@ -1,4 +1,4 @@
-# claude-in-the-loop
+# CaddyPro+
 
 > Spec-driven native mobile development — powered by Claude Code.
 

@@ -1,11 +1,11 @@
-package com.example.app.ui.navigation
+package caddypro.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.app.ui.screens.HomeScreen
+import caddypro.ui.screens.HomeScreen
 
 @Composable
 fun AppNavigation(

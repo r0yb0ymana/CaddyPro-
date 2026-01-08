@@ -1,4 +1,4 @@
-package com.example.app.ui.components
+package caddypro.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

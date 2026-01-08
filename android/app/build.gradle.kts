@@ -14,11 +14,11 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
 }
 
 android {
-    namespace = "com.example.app"
+    namespace = "caddypro"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.app"
+        applicationId = "caddypro"
         minSdk = 26
         targetSdk = 35
         
@@ -29,7 +29,7 @@ android {
         versionName = versionString
         versionCode = 1
 
-        testInstrumentationRunner = "com.example.app.HiltTestRunner"
+        testInstrumentationRunner = "caddypro.HiltTestRunner"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -42,7 +42,7 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             
-            buildConfigField("String", "API_BASE_URL", "\"https://api.dev.example.com/\"")
+            buildConfigField("String", "API_BASE_URL", "\"caddypro.com\"")
         }
         
         release {

@@ -1,4 +1,4 @@
-package com.example.app
+package caddypro
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

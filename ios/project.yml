@@ -1,4 +1,4 @@
-name: App
+name: CaddyPro+
 options:
   bundleIdPrefix: com.example
   deploymentTarget:
@@ -22,7 +22,7 @@ targets:
         product: App
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.app
+        PRODUCT_BUNDLE_IDENTIFIER: caddypro
         INFOPLIST_FILE: Info.plist
         marketingVersion: 1.0.0
         currentProjectVersion: 1
@@ -42,7 +42,7 @@ schemes:
     test:
       config: debug
       targets:
-        - name: AppTests
+        - name: CaddyPro+Tests
     profile:
       config: release
     analyze:

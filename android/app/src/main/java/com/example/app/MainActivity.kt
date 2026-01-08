@@ -1,4 +1,4 @@
-package com.example.app
+package caddypro
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.example.app.ui.navigation.AppNavigation
-import com.example.app.ui.theme.AppTheme
+import caddypro.ui.navigation.AppNavigation
+import caddypro.ui.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

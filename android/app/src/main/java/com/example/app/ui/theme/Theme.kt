@@ -1,4 +1,4 @@
-package com.example.app.ui.theme
+package caddypro.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
