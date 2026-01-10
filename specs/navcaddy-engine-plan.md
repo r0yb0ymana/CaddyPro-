@@ -207,10 +207,12 @@ This plan breaks down the NavCaddy Engine into 24 sequential tasks across 6 phas
 4. iOS implementation
 
 #### Verification:
-- [ ] Golf slang expands correctly
-- [ ] Numbers normalize ("one fifty" -> "150")
-- [ ] Profanity filtered without breaking intent
-- [ ] Language detection works for English
+- [x] Golf slang expands correctly
+- [x] Numbers normalize ("one fifty" -> "150")
+- [x] Profanity filtered without breaking intent
+- [x] Language detection works for English
+
+**Status**: ✅ COMPLETE (Note: iOS has richer dictionary - sync in future iteration)
 
 ---
 

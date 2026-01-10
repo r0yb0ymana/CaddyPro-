@@ -2,31 +2,46 @@ import Foundation
 
 /// Service for classifying user intents using LLM.
 ///
-/// Uses LLMClient to get classification, validates entities with IntentRegistry,
-/// and returns appropriate ClassificationResult based on confidence thresholds.
+/// Uses InputNormalizer to preprocess input, then LLMClient to get classification,
+/// validates entities with IntentRegistry, and returns appropriate ClassificationResult
+/// based on confidence thresholds.
 ///
 /// Spec R2: Intent classification pipeline with confidence-based routing.
 /// Spec A1: Correct routing on high-confidence intent.
 /// Spec A3: Clarification on low-confidence intent.
 actor IntentClassifier {
     private let llmClient: LLMClient
+    private let normalizer: InputNormalizer
 
-    init(llmClient: LLMClient) {
+    init(llmClient: LLMClient, normalizer: InputNormalizer = InputNormalizer()) {
         self.llmClient = llmClient
+        self.normalizer = normalizer
     }
 
     /// Classifies user input and determines the appropriate action.
     ///
     /// - Parameters:
-    ///   - input: The user's input text
+    ///   - input: The user's input text (raw, unnormalized)
     ///   - context: Optional session context for conversation continuity
     /// - Returns: Classification result with routing decision
     func classify(input: String, context: SessionContext?) async -> ClassificationResult {
-        do {
-            // Get LLM classification
-            let llmResponse = try await llmClient.classify(input: input, context: context)
+        // Step 1: Normalize input
+        let normalizationResult = normalizer.normalize(input)
+        let normalizedInput = normalizationResult.normalizedInput
 
-            // Parse the JSON response
+        // Step 2: Language detection (basic check)
+        if !normalizer.isEnglish(normalizedInput) {
+            return .clarify(
+                suggestions: getDefaultSuggestions(context: context),
+                message: "I'm sorry, I only understand English at the moment."
+            )
+        }
+
+        do {
+            // Step 3: Get LLM classification using normalized input
+            let llmResponse = try await llmClient.classify(input: normalizedInput, context: context)
+
+            // Step 4: Parse the JSON response
             guard let parsedIntent = try? parseResponse(llmResponse.rawResponse) else {
                 // If parsing fails, return clarification
                 return .clarify(
@@ -35,17 +50,17 @@ actor IntentClassifier {
                 )
             }
 
-            // Validate entities against schema
+            // Step 5: Validate entities against schema
             let validationResult = IntentRegistry.validateEntities(
                 for: parsedIntent.intentType,
                 entities: parsedIntent.entities
             )
 
-            // Get routing target
+            // Step 6: Get routing target
             let schema = IntentRegistry.getSchema(for: parsedIntent.intentType)
             let routingTarget = parsedIntent.routingTarget ?? schema.defaultRoutingTarget
 
-            // Determine action based on confidence threshold
+            // Step 7: Determine action based on confidence threshold
             let action = ConfidenceThresholds.action(for: parsedIntent.confidence)
 
             switch action {

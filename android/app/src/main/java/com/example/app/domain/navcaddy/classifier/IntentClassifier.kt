@@ -6,33 +6,38 @@ import caddypro.domain.navcaddy.llm.LLMClient
 import caddypro.domain.navcaddy.llm.LLMException
 import caddypro.domain.navcaddy.llm.GeminiClient
 import caddypro.domain.navcaddy.models.*
+import caddypro.domain.navcaddy.normalizer.InputNormalizer
 
 /**
  * Service that classifies user intents using an LLM and determines routing action.
  *
  * Classification pipeline:
- * 1. Call LLM to get intent classification
- * 2. Parse response into ParsedIntent
- * 3. Validate entities against intent schema
- * 4. Determine action based on confidence thresholds
- * 5. Return appropriate ClassificationResult
+ * 1. Normalize input (profanity, slang, numbers)
+ * 2. Call LLM to get intent classification
+ * 3. Parse response into ParsedIntent
+ * 4. Validate entities against intent schema
+ * 5. Determine action based on confidence thresholds
+ * 6. Return appropriate ClassificationResult
  *
- * Spec reference: navcaddy-engine.md R2, navcaddy-engine-plan.md Task 6
+ * Spec reference: navcaddy-engine.md R2, navcaddy-engine-plan.md Task 6, Task 7
  *
  * @property llmClient LLM client for classification
+ * @property normalizer Input normalizer for preprocessing
  */
 class IntentClassifier(
-    private val llmClient: LLMClient
+    private val llmClient: LLMClient,
+    private val normalizer: InputNormalizer = InputNormalizer()
 ) {
     /**
      * Classify user input and determine routing action.
      *
      * Flow:
-     * 1. Call LLM to get classification
-     * 2. Parse response into ParsedIntent
-     * 3. Validate entities against intent schema
-     * 4. Apply confidence thresholds
-     * 5. Return appropriate ClassificationResult
+     * 1. Normalize input (filter profanity, expand slang, normalize numbers)
+     * 2. Call LLM to get classification
+     * 3. Parse response into ParsedIntent
+     * 4. Validate entities against intent schema
+     * 5. Apply confidence thresholds
+     * 6. Return appropriate ClassificationResult
      *
      * @param input Raw user input (text or transcribed voice)
      * @param context Optional session context
@@ -48,8 +53,12 @@ class IntentClassifier(
                 )
             }
 
-            // Get classification from LLM
-            val llmResponse = llmClient.classify(input, context)
+            // Normalize input before classification
+            val normalizationResult = normalizer.normalize(input)
+            val normalizedInput = normalizationResult.normalizedInput
+
+            // Get classification from LLM using normalized input
+            val llmResponse = llmClient.classify(normalizedInput, context)
 
             // Parse the response into a ParsedIntent
             // For GeminiClient, we need to parse the raw JSON response
@@ -101,10 +110,10 @@ class IntentClassifier(
                 }
 
                 ThresholdAction.CLARIFY -> {
-                    val suggestions = findSimilarIntents(input, parsedIntent)
+                    val suggestions = findSimilarIntents(normalizedInput, parsedIntent)
                     ClassificationResult.Clarify(
                         suggestions = suggestions,
-                        message = buildClarificationMessage(input),
+                        message = buildClarificationMessage(normalizedInput),
                         originalInput = input
                     )
                 }
