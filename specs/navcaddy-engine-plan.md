@@ -185,10 +185,12 @@ This plan breaks down the NavCaddy Engine into 24 sequential tasks across 6 phas
 5. iOS implementation with async/await
 
 #### Verification:
-- [ ] Classifier returns valid ParsedIntent for test inputs
-- [ ] Confidence scores are in [0, 1] range
-- [ ] Entity extraction populates expected fields
-- [ ] Latency under P95 budget (text: 3.0s)
+- [x] Classifier returns valid ParsedIntent for test inputs
+- [x] Confidence scores are in [0, 1] range
+- [x] Entity extraction populates expected fields
+- [ ] Latency under P95 budget (text: 3.0s) - requires API integration
+
+**Status**: ✅ COMPLETE (API integration deferred to future task)
 
 ---
 
