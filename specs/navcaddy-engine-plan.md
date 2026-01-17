@@ -252,10 +252,12 @@ This plan breaks down the NavCaddy Engine into 24 sequential tasks across 6 phas
 4. iOS XCTest equivalents
 
 #### Verification:
-- [ ] All normalizer edge cases covered
-- [ ] Classifier tests pass with mocked responses
-- [ ] Threshold behavior verified
-- [ ] Tests run in CI
+- [x] All normalizer edge cases covered
+- [x] Classifier tests pass with mocked responses
+- [x] Threshold behavior verified
+- [ ] Tests run in CI (requires CI setup)
+
+**Status**: ✅ COMPLETE
 
 ---
 
