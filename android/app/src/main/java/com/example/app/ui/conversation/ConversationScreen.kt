@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import caddypro.analytics.IntentTraceView
 import caddypro.ui.conversation.voice.VoicePermissionHandler
 import caddypro.ui.conversation.voice.VoicePermissionRequest
 
@@ -48,9 +49,10 @@ import caddypro.ui.conversation.voice.VoicePermissionRequest
  * - Empty state when no messages
  * - Menu for clearing conversation
  * - Voice input with permission handling (Task 20)
+ * - Intent trace view for debugging (Task 22, debug builds only)
  *
- * Spec reference: navcaddy-engine.md R1, R7
- * Plan reference: navcaddy-engine-plan.md Task 18, Task 20
+ * Spec reference: navcaddy-engine.md R1, R7, R8
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 20, Task 22
  */
 @Composable
 fun ConversationScreen(
@@ -78,22 +80,30 @@ fun ConversationScreen(
         }
     )
 
-    ConversationContent(
-        state = uiState,
-        onAction = { action ->
-            // Intercept voice input start to check permission
-            if (action is ConversationAction.StartVoiceInput) {
-                if (permissionHandler.hasRecordAudioPermission()) {
-                    viewModel.onAction(action)
+    Box(modifier = modifier) {
+        ConversationContent(
+            state = uiState,
+            onAction = { action ->
+                // Intercept voice input start to check permission
+                if (action is ConversationAction.StartVoiceInput) {
+                    if (permissionHandler.hasRecordAudioPermission()) {
+                        viewModel.onAction(action)
+                    } else {
+                        shouldRequestPermission = true
+                    }
                 } else {
-                    shouldRequestPermission = true
+                    viewModel.onAction(action)
                 }
-            } else {
-                viewModel.onAction(action)
-            }
-        },
-        modifier = modifier
-    )
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Debug trace view overlay (only in DEBUG builds)
+        IntentTraceView(
+            analytics = viewModel.getAnalytics(),
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 /**

@@ -2,6 +2,8 @@ package caddypro.ui.conversation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import caddypro.analytics.AnalyticsEvent
+import caddypro.analytics.NavCaddyAnalytics
 import caddypro.domain.navcaddy.classifier.ClassificationResult
 import caddypro.domain.navcaddy.classifier.IntentClassifier
 import caddypro.domain.navcaddy.context.SessionContextManager
@@ -31,9 +33,10 @@ import javax.inject.Inject
  * 4. Navigation execution
  * 5. Response formatting with Bones persona
  * 6. Voice input integration (Task 20)
+ * 7. Analytics and observability (Task 22)
  *
- * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7
- * Plan reference: navcaddy-engine-plan.md Task 18, Task 20
+ * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 20, Task 22
  */
 @HiltViewModel
 class ConversationViewModel @Inject constructor(
@@ -42,13 +45,17 @@ class ConversationViewModel @Inject constructor(
     private val sessionContextManager: SessionContextManager,
     private val navigator: NavCaddyNavigator,
     private val responseFormatter: BonesResponseFormatter,
-    private val voiceInputManager: VoiceInputManager
+    private val voiceInputManager: VoiceInputManager,
+    private val analytics: NavCaddyAnalytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationState())
     val uiState: StateFlow<ConversationState> = _uiState.asStateFlow()
 
     init {
+        // Start analytics session
+        analytics.startSession()
+
         // Add welcome message
         addAssistantMessage(
             "Hi! I'm Bones, your digital caddy. Ask me about club selection, " +
@@ -72,6 +79,8 @@ class ConversationViewModel @Inject constructor(
 
                     is VoiceInputState.Listening -> {
                         _uiState.update { it.copy(isVoiceInputActive = true) }
+                        // Start tracking voice input latency
+                        analytics.startLatencyTracking("voice_transcription")
                     }
 
                     is VoiceInputState.Processing -> {
@@ -80,11 +89,28 @@ class ConversationViewModel @Inject constructor(
 
                     is VoiceInputState.Result -> {
                         // Voice input completed successfully
+                        val latency = analytics.stopLatencyTracking("voice_transcription")
+                        analytics.logVoiceTranscription(
+                            latencyMs = latency,
+                            transcription = voiceState.transcription,
+                            wasSuccessful = true
+                        )
                         handleVoiceInputComplete(voiceState.transcription)
                     }
 
                     is VoiceInputState.Error -> {
                         // Voice input error
+                        val latency = analytics.stopLatencyTracking("voice_transcription")
+                        analytics.logVoiceTranscription(
+                            latencyMs = latency,
+                            transcription = "",
+                            wasSuccessful = false
+                        )
+                        analytics.logError(
+                            errorType = AnalyticsEvent.ErrorOccurred.ErrorType.VOICE_TRANSCRIPTION_ERROR,
+                            message = voiceState.message,
+                            isRecoverable = true
+                        )
                         handleVoiceInputError(voiceState.message)
                     }
                 }
@@ -119,6 +145,12 @@ class ConversationViewModel @Inject constructor(
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) return
 
+        // Log input received
+        analytics.logInputReceived(
+            inputType = AnalyticsEvent.InputReceived.InputType.TEXT,
+            input = trimmedText
+        )
+
         // Add user message to conversation
         addUserMessage(trimmedText)
 
@@ -138,18 +170,62 @@ class ConversationViewModel @Inject constructor(
                 // Show loading state
                 _uiState.update { it.copy(isLoading = true) }
 
+                // Start tracking classification latency
+                analytics.startLatencyTracking("classification")
+
                 // Get session context
                 val context = sessionContextManager.getCurrentContext()
 
                 // Classify intent
                 val classificationResult = intentClassifier.classify(input, context)
 
+                // Stop tracking classification latency
+                val classificationLatency = analytics.stopLatencyTracking("classification")
+
                 // Handle classification result
                 when (classificationResult) {
-                    is ClassificationResult.Route -> handleRouteClassification(classificationResult)
-                    is ClassificationResult.Confirm -> handleConfirmClassification(classificationResult)
-                    is ClassificationResult.Clarify -> handleClarifyClassification(classificationResult)
-                    is ClassificationResult.Error -> handleErrorClassification(classificationResult)
+                    is ClassificationResult.Route -> {
+                        // Log successful classification
+                        analytics.logIntentClassified(
+                            intent = classificationResult.parsedIntent.intent.name,
+                            confidence = classificationResult.parsedIntent.confidence,
+                            latencyMs = classificationLatency,
+                            wasSuccessful = true
+                        )
+                        handleRouteClassification(classificationResult)
+                    }
+
+                    is ClassificationResult.Confirm -> {
+                        // Log mid-confidence classification
+                        analytics.logIntentClassified(
+                            intent = classificationResult.parsedIntent.intent.name,
+                            confidence = classificationResult.parsedIntent.confidence,
+                            latencyMs = classificationLatency,
+                            wasSuccessful = true
+                        )
+                        handleConfirmClassification(classificationResult)
+                    }
+
+                    is ClassificationResult.Clarify -> {
+                        // Log clarification request
+                        analytics.logClarificationRequested(
+                            originalInput = input,
+                            confidence = 0f, // Low confidence
+                            suggestionsCount = classificationResult.suggestions.size
+                        )
+                        handleClarifyClassification(classificationResult)
+                    }
+
+                    is ClassificationResult.Error -> {
+                        // Log classification error
+                        analytics.logIntentClassified(
+                            intent = "ERROR",
+                            confidence = 0f,
+                            latencyMs = classificationLatency,
+                            wasSuccessful = false
+                        )
+                        handleErrorClassification(classificationResult)
+                    }
                 }
 
                 // Update session context with this turn
@@ -165,12 +241,20 @@ class ConversationViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
+                // Log unexpected error
+                analytics.logError(
+                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.UNKNOWN,
+                    message = e.message ?: "Unknown error",
+                    isRecoverable = true,
+                    throwable = e
+                )
                 addErrorMessage(
                     message = "Something went wrong. Please try again.",
                     isRecoverable = true
                 )
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
+                analytics.clearTracking()
             }
         }
     }
@@ -179,11 +263,25 @@ class ConversationViewModel @Inject constructor(
      * Handle high-confidence route classification.
      */
     private suspend fun handleRouteClassification(result: ClassificationResult.Route) {
+        // Start tracking routing latency
+        analytics.startLatencyTracking("routing")
+
         // Route through orchestrator
         val routingResult = routingOrchestrator.route(result)
 
+        // Stop tracking routing latency
+        val routingLatency = analytics.stopLatencyTracking("routing")
+
         when (routingResult) {
             is RoutingResult.Navigate -> {
+                // Log route execution
+                analytics.logRouteExecuted(
+                    module = routingResult.target.module.name,
+                    screen = routingResult.target.screen,
+                    latencyMs = routingLatency,
+                    parameters = routingResult.target.parameters
+                )
+
                 // Navigate to target
                 navigator.navigate(
                     caddypro.domain.navcaddy.navigation.NavCaddyDestination.fromRoutingTarget(
@@ -243,9 +341,35 @@ class ConversationViewModel @Inject constructor(
      */
     private fun handleErrorClassification(result: ClassificationResult.Error) {
         val errorType = when {
-            result.cause is java.net.UnknownHostException -> BonesResponseFormatter.ErrorType.NETWORK_ERROR
-            result.cause is java.util.concurrent.TimeoutException -> BonesResponseFormatter.ErrorType.TIMEOUT
-            else -> BonesResponseFormatter.ErrorType.SERVICE_UNAVAILABLE
+            result.cause is java.net.UnknownHostException -> {
+                analytics.logError(
+                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.NETWORK_ERROR,
+                    message = "Network unavailable",
+                    isRecoverable = true,
+                    throwable = result.cause
+                )
+                BonesResponseFormatter.ErrorType.NETWORK_ERROR
+            }
+
+            result.cause is java.util.concurrent.TimeoutException -> {
+                analytics.logError(
+                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.TIMEOUT,
+                    message = "Request timed out",
+                    isRecoverable = true,
+                    throwable = result.cause
+                )
+                BonesResponseFormatter.ErrorType.TIMEOUT
+            }
+
+            else -> {
+                analytics.logError(
+                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.SERVICE_UNAVAILABLE,
+                    message = result.cause?.message ?: "Service unavailable",
+                    isRecoverable = true,
+                    throwable = result.cause
+                )
+                BonesResponseFormatter.ErrorType.SERVICE_UNAVAILABLE
+            }
         }
 
         val formattedError = responseFormatter.formatError(errorType)
@@ -256,6 +380,19 @@ class ConversationViewModel @Inject constructor(
      * Handle suggestion chip selection.
      */
     private fun handleSuggestionSelected(intentType: IntentType, label: String) {
+        // Log suggestion selection
+        val suggestions = (_uiState.value.messages.lastOrNull {
+            it is ConversationMessage.Clarification
+        } as? ConversationMessage.Clarification)?.suggestions ?: emptyList()
+
+        val index = suggestions.indexOfFirst { it.intentType == intentType }
+        if (index >= 0) {
+            analytics.logSuggestionSelected(
+                intentType = intentType.name,
+                suggestionIndex = index
+            )
+        }
+
         // Add user message showing selection
         addUserMessage(label)
 
@@ -309,6 +446,11 @@ class ConversationViewModel @Inject constructor(
         voiceInputManager.resetState()
 
         if (transcription.isNotBlank()) {
+            // Log voice input
+            analytics.logInputReceived(
+                inputType = AnalyticsEvent.InputReceived.InputType.VOICE,
+                input = transcription
+            )
             handleSendMessage(transcription)
         }
     }
@@ -349,6 +491,10 @@ class ConversationViewModel @Inject constructor(
     private fun clearConversation() {
         _uiState.update { ConversationState() }
         sessionContextManager.clearConversationHistory()
+
+        // Start new analytics session
+        analytics.startSession()
+
         // Re-add welcome message
         addAssistantMessage(
             "Hi! I'm Bones, your digital caddy. How can I help?"
@@ -401,10 +547,17 @@ class ConversationViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Get analytics instance for debug view.
+     */
+    fun getAnalytics(): NavCaddyAnalytics = analytics
+
     override fun onCleared() {
         super.onCleared()
         // Clean up voice input when ViewModel is cleared
         voiceInputManager.cancelListening()
+        // Clear analytics tracking
+        analytics.clearTracking()
     }
 }
 

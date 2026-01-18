@@ -11,9 +11,10 @@ import Observation
  * 4. Navigation execution
  * 5. Response formatting with Bones persona
  * 6. Voice input with speech recognition (Task 21)
+ * 7. Analytics and observability (Task 22)
  *
- * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7
- * Plan reference: navcaddy-engine-plan.md Task 19, Task 21
+ * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8
+ * Plan reference: navcaddy-engine-plan.md Task 19, Task 21, Task 22
  */
 @Observable
 @MainActor
@@ -30,6 +31,11 @@ final class ConversationViewModel {
     private let navigationExecutor: NavigationExecutor
     private let responseFormatter: BonesResponseFormatter
     private let voiceInputManager: VoiceInputManager
+    private let analytics: NavCaddyAnalytics
+
+    // MARK: - Session
+
+    private let sessionId: String
 
     // MARK: - Initialization
 
@@ -41,6 +47,9 @@ final class ConversationViewModel {
         // Create prerequisite checker
         let prerequisiteChecker = PrerequisiteChecker()
 
+        // Generate session ID
+        self.sessionId = UUID().uuidString
+
         // Assign dependencies
         self.intentClassifier = classifier
         self.routingOrchestrator = RoutingOrchestrator(prerequisiteChecker: prerequisiteChecker)
@@ -48,6 +57,7 @@ final class ConversationViewModel {
         self.navigationExecutor = dependencies.navigationExecutor
         self.responseFormatter = BonesResponseFormatter()
         self.voiceInputManager = VoiceInputManager()
+        self.analytics = dependencies.analytics
 
         // Add welcome message
         addAssistantMessage(
@@ -104,6 +114,13 @@ final class ConversationViewModel {
         // Clear input
         state.currentInput = ""
 
+        // Track input received event
+        analytics.log(.inputReceived(InputReceivedEvent(
+            timestamp: Date(),
+            inputType: .text,
+            sessionId: sessionId
+        )))
+
         // Process the message
         processUserInput(trimmedText)
     }
@@ -111,6 +128,8 @@ final class ConversationViewModel {
     /// Process user input through the NavCaddy pipeline.
     private func processUserInput(_ input: String) {
         Task {
+            let pipelineStartTime = Date()
+
             do {
                 // Show loading state
                 state.isLoading = true
@@ -118,18 +137,62 @@ final class ConversationViewModel {
                 // Get session context
                 let context = await sessionContextManager.getCurrentContext()
 
-                // Classify intent
+                // Classify intent (with latency tracking)
+                let classificationStartTime = Date()
                 let classificationResult = await intentClassifier.classify(input: input, context: context)
+                let classificationLatency = Int(Date().timeIntervalSince(classificationStartTime) * 1000)
+
+                // Track classification latency
+                analytics.trackLatency(
+                    operation: "intent_classification",
+                    latencyMs: classificationLatency,
+                    sessionId: sessionId
+                )
 
                 // Handle classification result
                 switch classificationResult {
                 case .route(let intent, let target):
+                    // Track classified intent
+                    analytics.log(.intentClassified(IntentClassifiedEvent(
+                        intent: intent.intentType.rawValue,
+                        confidence: intent.confidence,
+                        latencyMs: classificationLatency,
+                        sessionId: sessionId
+                    )))
+
                     await handleRouteClassification(intent: intent, target: target)
+
                 case .confirm(let intent, let message):
+                    // Track classified intent (confirmation required)
+                    analytics.log(.intentClassified(IntentClassifiedEvent(
+                        intent: intent.intentType.rawValue,
+                        confidence: intent.confidence,
+                        latencyMs: classificationLatency,
+                        sessionId: sessionId
+                    )))
+
                     handleConfirmClassification(intent: intent, message: message)
+
                 case .clarify(let response):
+                    // Track clarification (low confidence)
+                    analytics.log(.intentClassified(IntentClassifiedEvent(
+                        intent: "CLARIFY",
+                        confidence: 0.0,
+                        latencyMs: classificationLatency,
+                        sessionId: sessionId
+                    )))
+
                     handleClarifyClassification(response: response)
+
                 case .error(let error):
+                    // Track error
+                    analytics.log(.errorOccurred(ErrorOccurredEvent(
+                        errorType: .classification,
+                        message: error.userMessage,
+                        isRecoverable: error.isRecoverable,
+                        sessionId: sessionId
+                    )))
+
                     handleErrorClassification(error: error)
                 }
 
@@ -147,6 +210,14 @@ final class ConversationViewModel {
                 }
 
             } catch {
+                // Track unexpected error
+                analytics.log(.errorOccurred(ErrorOccurredEvent(
+                    errorType: .unknown,
+                    message: error.localizedDescription,
+                    isRecoverable: true,
+                    sessionId: sessionId
+                )))
+
                 addErrorMessage(
                     message: "Something went wrong. Please try again.",
                     isRecoverable: true
@@ -155,16 +226,42 @@ final class ConversationViewModel {
 
             // Hide loading state
             state.isLoading = false
+
+            // Track total pipeline latency
+            let totalLatency = Int(Date().timeIntervalSince(pipelineStartTime) * 1000)
+            analytics.trackLatency(
+                operation: "total_pipeline",
+                latencyMs: totalLatency,
+                sessionId: sessionId
+            )
         }
     }
 
     /// Handle high-confidence route classification.
     private func handleRouteClassification(intent: ParsedIntent, target: RoutingTarget) async {
+        let routingStartTime = Date()
+
         // Route through orchestrator
         let routingResult = await routingOrchestrator.route(.route(intent: intent, target: target))
 
+        let routingLatency = Int(Date().timeIntervalSince(routingStartTime) * 1000)
+
         switch routingResult {
         case .navigate(let target, _):
+            // Track routing execution
+            analytics.trackLatency(
+                operation: "routing",
+                latencyMs: routingLatency,
+                sessionId: sessionId
+            )
+
+            analytics.log(.routeExecuted(RouteExecutedEvent(
+                module: target.module.rawValue,
+                screen: target.screen,
+                latencyMs: routingLatency,
+                sessionId: sessionId
+            )))
+
             // Navigate to target
             let destination = NavCaddyDestination.from(routingTarget: target)
             await navigationExecutor.navigate(to: destination)
@@ -211,20 +308,29 @@ final class ConversationViewModel {
     /// Handle classification error.
     private func handleErrorClassification(error: LLMError) {
         let errorMessage: String
+        let errorType: ErrorOccurredEvent.ErrorType
+
         switch error {
         case .networkError:
             errorMessage = "Network error. Please check your connection and try again."
+            errorType = .network
         case .timeout:
             errorMessage = "Request timed out. Please try again."
+            errorType = .timeout
         case .apiError(let code, let message):
             errorMessage = "API error (\(code)): \(message)"
+            errorType = .classification
         case .parseError:
             errorMessage = "I couldn't understand the response. Please try rephrasing."
+            errorType = .classification
         case .unauthorized:
             errorMessage = "Authentication error. Please check your settings."
+            errorType = .classification
         case .unknown(let message):
             errorMessage = "Error: \(message)"
+            errorType = .unknown
         }
+
         addErrorMessage(errorMessage, isRecoverable: true)
     }
 
@@ -298,10 +404,25 @@ final class ConversationViewModel {
             // Final result - send message
             state.isVoiceInputActive = false
             if !transcription.isEmpty {
+                // Track voice input event
+                analytics.log(.inputReceived(InputReceivedEvent(
+                    timestamp: Date(),
+                    inputType: .voice,
+                    sessionId: sessionId
+                )))
+
                 handleSendMessage(transcription)
             }
 
         case .error(let error):
+            // Track voice input error
+            analytics.log(.errorOccurred(ErrorOccurredEvent(
+                errorType: .transcription,
+                message: error.userMessage,
+                isRecoverable: error.isRecoverable,
+                sessionId: sessionId
+            )))
+
             // Handle voice input error
             state.isVoiceInputActive = false
             addErrorMessage(error.userMessage, isRecoverable: error.isRecoverable)
@@ -311,7 +432,26 @@ final class ConversationViewModel {
     /// Start voice input.
     private func startVoiceInput() {
         Task {
+            let startTime = Date()
             await voiceInputManager.startListening()
+
+            // Track transcription latency when complete
+            if case .result(let transcription) = voiceInputManager.state {
+                let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
+                let wordCount = transcription.split(separator: " ").count
+
+                analytics.log(.voiceTranscription(VoiceTranscriptionEvent(
+                    latencyMs: latencyMs,
+                    wordCount: wordCount,
+                    sessionId: sessionId
+                )))
+
+                analytics.trackLatency(
+                    operation: "voice_transcription",
+                    latencyMs: latencyMs,
+                    sessionId: sessionId
+                )
+            }
         }
     }
 
@@ -399,4 +539,18 @@ final class ConversationViewModel {
         )
         state.messages.append(errorMessage)
     }
+
+    // MARK: - Debug Helpers
+
+    #if DEBUG
+    /// Get the session ID for debugging
+    var debugSessionId: String {
+        sessionId
+    }
+
+    /// Get the analytics service for debugging
+    var debugAnalytics: NavCaddyAnalytics {
+        analytics
+    }
+    #endif
 }

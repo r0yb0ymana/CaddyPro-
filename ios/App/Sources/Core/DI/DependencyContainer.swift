@@ -62,6 +62,26 @@ final class DependencyContainer {
         MissPatternStore(repository: navCaddyRepository)
     }()
 
+    // MARK: - Session Context (Task 15)
+
+    /// Session context manager for conversation continuity
+    lazy var sessionContextManager: SessionContextManager = {
+        SessionContextManager()
+    }()
+
+    // MARK: - Analytics (Task 22)
+
+    /// Analytics service for observability and debugging
+    lazy var analytics: NavCaddyAnalytics = {
+        #if DEBUG
+        // Use console analytics in debug builds
+        ConsoleAnalytics(enablePIIRedaction: true, verbose: true)
+        #else
+        // Use no-op analytics in release builds (maximum privacy)
+        NoOpAnalytics()
+        #endif
+    }()
+
     // MARK: - Use Cases
 
     // lazy var loginUseCase: LoginUseCase = {
