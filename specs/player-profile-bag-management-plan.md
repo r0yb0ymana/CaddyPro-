@@ -69,7 +69,7 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
 - [ ] Q3 (normalization) has MVP approach documented
 - [ ] Q4 (altitude) marked as deferred or has scope
 
-**Status**: BLOCKED - Awaiting clarification
+**Status**: ✅ COMPLETE - All questions resolved (Q1: 5%, Q2: 20 shots, Q3-Q4 deferred)
 
 ---
 
@@ -126,10 +126,12 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
 - Use Identifiable where appropriate
 
 #### Verification:
-- [ ] All models compile on both platforms
-- [ ] Models are Codable/Serializable for persistence
-- [ ] Enums match across platforms
-- [ ] Unit tests validate serialization roundtrip
+- [x] All models compile on both platforms
+- [x] Models are Codable/Serializable for persistence
+- [x] Enums match across platforms (MissBiasDirection, MissType)
+- [ ] Unit tests validate serialization roundtrip (deferred to Task 19)
+
+**Status**: ✅ COMPLETE
 
 ---
 
