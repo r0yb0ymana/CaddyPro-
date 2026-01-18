@@ -1,6 +1,7 @@
 package caddypro.domain.navcaddy.navigation
 
 import caddypro.domain.navcaddy.models.Module
+import caddypro.domain.navcaddy.models.RoutingTarget
 
 /**
  * Sealed class representing all navigable destinations in the NavCaddy system.
@@ -224,6 +225,71 @@ sealed class NavCaddyDestination(
      */
     data object HelpScreen : NavCaddyDestination(Module.SETTINGS, "help") {
         override fun toRoute(): String = "settings/help"
+    }
+
+    companion object {
+        /**
+         * Convert a RoutingTarget to a NavCaddyDestination.
+         *
+         * Maps the module, screen, and parameters from the intent routing system
+         * to the appropriate destination type.
+         */
+        fun fromRoutingTarget(target: RoutingTarget): NavCaddyDestination {
+            return when (target.module) {
+                Module.CADDY -> when (target.screen) {
+                    "club_adjustment" -> ClubAdjustment(
+                        clubId = target.parameters["clubId"] as? String
+                    )
+                    "shot_recommendation" -> ShotRecommendation(
+                        yardage = (target.parameters["yardage"] as? Number)?.toInt(),
+                        lie = target.parameters["lie"] as? String,
+                        wind = target.parameters["wind"] as? String
+                    )
+                    "round_start" -> RoundStart(
+                        courseName = target.parameters["courseName"] as? String
+                    )
+                    "score_entry" -> ScoreEntry(
+                        hole = (target.parameters["hole"] as? Number)?.toInt()
+                    )
+                    "round_end" -> RoundEnd
+                    "weather" -> WeatherCheck
+                    "stats" -> StatsLookup(
+                        statType = target.parameters["statType"] as? String
+                    )
+                    "course_info" -> CourseInfo(
+                        courseId = target.parameters["courseId"] as? String
+                            ?: error("courseId required for CourseInfo destination")
+                    )
+                    else -> error("Unknown CADDY screen: ${target.screen}")
+                }
+
+                Module.COACH -> when (target.screen) {
+                    "drill" -> DrillScreen(
+                        drillId = target.parameters["drillId"] as? String,
+                        focusArea = target.parameters["focusArea"] as? String
+                    )
+                    "practice" -> PracticeSession
+                    else -> error("Unknown COACH screen: ${target.screen}")
+                }
+
+                Module.RECOVERY -> when (target.screen) {
+                    "overview" -> RecoveryOverview
+                    "data_entry" -> RecoveryDataEntry(
+                        dataType = target.parameters["dataType"] as? String
+                    )
+                    else -> error("Unknown RECOVERY screen: ${target.screen}")
+                }
+
+                Module.SETTINGS -> when (target.screen) {
+                    "equipment" -> EquipmentManagement
+                    "settings" -> SettingsScreen(
+                        settingKey = target.parameters["settingKey"] as? String
+                    )
+                    "help" -> HelpScreen
+                    else -> error("Unknown SETTINGS screen: ${target.screen}")
+                }
+            }
+        }
     }
 }
 
