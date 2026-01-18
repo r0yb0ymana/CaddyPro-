@@ -3,6 +3,9 @@ package caddypro.di
 import android.content.Context
 import androidx.room.Room
 import caddypro.data.navcaddy.NavCaddyDatabase
+import caddypro.data.navcaddy.dao.BagClubDao
+import caddypro.data.navcaddy.dao.BagProfileDao
+import caddypro.data.navcaddy.dao.DistanceAuditDao
 import caddypro.data.navcaddy.dao.MissPatternDao
 import caddypro.data.navcaddy.dao.SessionDao
 import caddypro.data.navcaddy.dao.ShotDao
@@ -22,6 +25,7 @@ import javax.inject.Singleton
  * Provides database, DAOs, and repository implementation.
  *
  * Spec reference: navcaddy-engine.md R5, R6, C4
+ *                 player-profile-bag-management.md R1, R2, R3
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -73,6 +77,33 @@ object NavCaddyDataModule {
     @Singleton
     fun provideSessionDao(database: NavCaddyDatabase): SessionDao {
         return database.sessionDao()
+    }
+
+    /**
+     * Provide BagProfileDao from database.
+     */
+    @Provides
+    @Singleton
+    fun provideBagProfileDao(database: NavCaddyDatabase): BagProfileDao {
+        return database.bagProfileDao()
+    }
+
+    /**
+     * Provide BagClubDao from database.
+     */
+    @Provides
+    @Singleton
+    fun provideBagClubDao(database: NavCaddyDatabase): BagClubDao {
+        return database.bagClubDao()
+    }
+
+    /**
+     * Provide DistanceAuditDao from database.
+     */
+    @Provides
+    @Singleton
+    fun provideDistanceAuditDao(database: NavCaddyDatabase): DistanceAuditDao {
+        return database.distanceAuditDao()
     }
 }
 
