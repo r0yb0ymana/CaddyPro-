@@ -28,10 +28,12 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
 **Recommendation**: Resolve Q1-Q2 before starting Phase 3. Q3-Q4 can be deferred to post-MVP.
 
 **Proposed Defaults (if spec not updated)**:
-- Q1: Material difference = 5 yards OR 5% of estimated carry (whichever is greater)
+- Q1: Material difference = 5 meters OR 5% of estimated carry (whichever is greater)
 - Q2: Minimum sample size = 10 shots per club
 - Q3: MVP skips normalization; track raw values with "conditions varied" disclaimer
 - Q4: Defer altitude support to future release
+
+**Note: All measurements use metric units (meters, Celsius, kilograms)**
 
 ---
 
@@ -89,7 +91,7 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
    - updatedAt: Instant
 
 2. Extend `Club` data class with new fields:
-   - estimatedCarry: Int (yards)
+   - estimatedCarry: Int (meters)
    - inferredCarry: Int? (nullable until calculated)
    - inferredConfidence: Float? (0.0-1.0)
    - missBias: MissBias?
@@ -795,7 +797,7 @@ fun getAuditHistory(clubId: String): Flow<List<DistanceAuditEntry>>
 
 | Question | Spec Ref | Proposed Default | Status |
 |----------|----------|------------------|--------|
-| Q1: Material distance difference | R3 | 5 yards OR 5% | NEEDS DECISION |
+| Q1: Material distance difference | R3 | 5 meters OR 5% | NEEDS DECISION |
 | Q2: Minimum sample size | R3 | 10 shots/club | NEEDS DECISION |
 | Q3: Wind/temp normalization | R3 | Skip for MVP | DEFERRED |
 | Q4: Altitude profiles | R3 | Skip for MVP | DEFERRED |
