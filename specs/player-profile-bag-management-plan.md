@@ -252,10 +252,18 @@ fun getAuditHistory(clubId: String): Flow<List<DistanceAuditEntry>>
 **iOS** - Mirror in `NavCaddyRepository.swift` protocol with async/await
 
 #### Verification:
-- [ ] Repository compiles on both platforms
-- [ ] Active bag flow emits on changes
-- [ ] Switching bag updates all subscribers
-- [ ] Integration tests verify propagation
+- [x] Repository compiles on both platforms
+- [x] Active bag flow emits on changes (Room/SwiftData auto-emit)
+- [x] Switching bag updates all subscribers
+- [ ] Integration tests verify propagation (Task 21)
+
+**Status**: ✅ COMPLETE
+
+**Notes**:
+- Android: 14 new methods added to NavCaddyRepository interface and impl
+- iOS: Already completed in Task 4 (repository extended there)
+- Unit tests for repository methods deferred to Task 19
+- Platform parity verified: all 14 methods on both platforms
 
 ---
 

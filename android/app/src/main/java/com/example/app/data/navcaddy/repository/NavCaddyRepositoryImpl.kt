@@ -1,5 +1,9 @@
 package caddypro.data.navcaddy.repository
 
+import com.example.app.domain.navcaddy.models.BagProfile
+import com.example.app.domain.navcaddy.models.Club
+import com.example.app.domain.navcaddy.models.DistanceAuditEntry
+import com.example.app.domain.navcaddy.models.MissBias
 import caddypro.data.navcaddy.NavCaddyDatabase
 import caddypro.data.navcaddy.toDomain
 import caddypro.data.navcaddy.toEntity
@@ -9,7 +13,9 @@ import caddypro.domain.navcaddy.models.SessionContext
 import caddypro.domain.navcaddy.models.Shot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,6 +25,7 @@ import javax.inject.Singleton
  * Handles entity-to-domain mapping and implements retention policies.
  *
  * Spec reference: navcaddy-engine.md R5, R6, C4, C5, Q5
+ *                 player-profile-bag-management.md R1, R2, R3, R4, R5
  */
 @Singleton
 class NavCaddyRepositoryImpl @Inject constructor(
@@ -28,6 +35,9 @@ class NavCaddyRepositoryImpl @Inject constructor(
     private val shotDao = database.shotDao()
     private val missPatternDao = database.missPatternDao()
     private val sessionDao = database.sessionDao()
+    private val bagProfileDao = database.bagProfileDao()
+    private val bagClubDao = database.bagClubDao()
+    private val distanceAuditDao = database.distanceAuditDao()
 
     companion object {
         /** 90-day retention window in milliseconds */
@@ -141,5 +151,118 @@ class NavCaddyRepositoryImpl @Inject constructor(
         missPatternDao.deleteAllPatterns()
         sessionDao.deleteCurrentSession()
         sessionDao.deleteAllConversationTurns()
+    }
+
+    // ========================================================================
+    // Bag Profile Operations (player-profile-bag-management.md R1, R5)
+    // ========================================================================
+
+    override suspend fun createBag(profile: BagProfile): BagProfile {
+        bagProfileDao.insertBag(profile.toEntity())
+        return profile
+    }
+
+    override suspend fun updateBag(profile: BagProfile) {
+        val updatedProfile = profile.copy(updatedAt = System.currentTimeMillis())
+        bagProfileDao.updateBag(updatedProfile.toEntity())
+    }
+
+    override suspend fun archiveBag(bagId: String) {
+        bagProfileDao.archiveBag(bagId)
+    }
+
+    override suspend fun duplicateBag(bagId: String, newName: String): BagProfile {
+        // Get the source bag to duplicate
+        val sourceBag = bagProfileDao.getBagById(bagId).first()
+            ?: throw IllegalArgumentException("Bag not found: $bagId")
+
+        // Create a new bag with a new ID and the specified name
+        val newBagId = UUID.randomUUID().toString()
+        val timestamp = System.currentTimeMillis()
+        val newBag = sourceBag.copy(
+            id = newBagId,
+            name = newName,
+            isActive = false,
+            isArchived = false,
+            createdAt = timestamp,
+            updatedAt = timestamp
+        )
+        bagProfileDao.insertBag(newBag)
+
+        // Copy all clubs from the source bag to the new bag
+        val sourceClubs = bagClubDao.getClubsForBag(bagId).first()
+        sourceClubs.forEach { sourceClub ->
+            val newClub = sourceClub.copy(
+                id = UUID.randomUUID().toString(),
+                bagId = newBagId
+            )
+            bagClubDao.insertClub(newClub)
+        }
+
+        return newBag.toDomain()
+    }
+
+    override fun getActiveBag(): Flow<BagProfile?> {
+        return bagProfileDao.getActiveBag().map { entity ->
+            entity?.toDomain()
+        }
+    }
+
+    override fun getAllBags(): Flow<List<BagProfile>> {
+        return bagProfileDao.getAllBags().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun switchActiveBag(bagId: String) {
+        bagProfileDao.switchActiveBag(bagId)
+    }
+
+    // ========================================================================
+    // Club Operations - bag-scoped (player-profile-bag-management.md R2)
+    // ========================================================================
+
+    override fun getClubsForBag(bagId: String): Flow<List<Club>> {
+        return bagClubDao.getClubsForBag(bagId).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun updateClubDistance(bagId: String, clubId: String, estimated: Int) {
+        bagClubDao.updateClubDistance(bagId, clubId, estimated)
+    }
+
+    override suspend fun updateClubMissBias(bagId: String, clubId: String, bias: MissBias) {
+        bagClubDao.updateMissBias(
+            bagId = bagId,
+            clubId = clubId,
+            direction = bias.dominantDirection.name,
+            missType = bias.missType?.name,
+            isUserDefined = bias.isUserDefined,
+            confidence = bias.confidence,
+            lastUpdated = bias.lastUpdated
+        )
+    }
+
+    override suspend fun addClubToBag(bagId: String, club: Club, position: Int) {
+        bagClubDao.insertClub(club.toEntity(bagId, position))
+    }
+
+    override suspend fun removeClubFromBag(bagId: String, clubId: String) {
+        bagClubDao.removeClubFromBag(bagId, clubId)
+    }
+
+    // ========================================================================
+    // Audit Trail (player-profile-bag-management.md R3)
+    // ========================================================================
+
+    override suspend fun recordDistanceAudit(entry: DistanceAuditEntry) {
+        distanceAuditDao.insertAudit(entry.toEntity())
+    }
+
+    override fun getAuditHistory(clubId: String): Flow<List<DistanceAuditEntry>> {
+        return distanceAuditDao.getAuditHistory(clubId).map { entities ->
+            entities.map { it.toDomain() }
+        }
     }
 }
