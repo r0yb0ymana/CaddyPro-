@@ -14,6 +14,9 @@ import caddypro.domain.navcaddy.error.RecoveryAction
 import caddypro.domain.navcaddy.fallback.LocalIntentSuggestions
 import caddypro.domain.navcaddy.models.IntentType
 import caddypro.domain.navcaddy.navigation.NavCaddyNavigator
+import caddypro.domain.navcaddy.offline.NetworkMonitor
+import caddypro.domain.navcaddy.offline.OfflineCapability
+import caddypro.domain.navcaddy.offline.OfflineIntentHandler
 import caddypro.domain.navcaddy.persona.BonesResponseFormatter
 import caddypro.domain.navcaddy.routing.RoutingOrchestrator
 import caddypro.domain.navcaddy.routing.RoutingResult
@@ -39,9 +42,10 @@ import javax.inject.Inject
  * 6. Voice input integration (Task 20)
  * 7. Analytics and observability (Task 22)
  * 8. Error handling and fallbacks (Task 23)
+ * 9. Offline mode support (Task 24)
  *
- * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8, G6
- * Plan reference: navcaddy-engine-plan.md Task 18, Task 20, Task 22, Task 23
+ * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8, G6, C6
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 20, Task 22, Task 23, Task 24
  */
 @HiltViewModel
 class ConversationViewModel @Inject constructor(
@@ -53,7 +57,9 @@ class ConversationViewModel @Inject constructor(
     private val voiceInputManager: VoiceInputManager,
     private val analytics: NavCaddyAnalytics,
     private val errorHandler: NavCaddyErrorHandler,
-    private val localSuggestions: LocalIntentSuggestions
+    private val localSuggestions: LocalIntentSuggestions,
+    private val networkMonitor: NetworkMonitor,
+    private val offlineIntentHandler: OfflineIntentHandler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationState())
@@ -62,6 +68,9 @@ class ConversationViewModel @Inject constructor(
     // Track error retry attempts
     private var retryAttempts = 0
     private var lastUserInput: String? = null
+
+    // Track offline state
+    private var isOffline = false
 
     init {
         // Start analytics session
@@ -75,6 +84,52 @@ class ConversationViewModel @Inject constructor(
 
         // Observe voice input state
         observeVoiceInputState()
+
+        // Observe network connectivity
+        observeNetworkState()
+    }
+
+    /**
+     * Observe network connectivity state changes.
+     *
+     * Shows user notifications when entering/exiting offline mode.
+     */
+    private fun observeNetworkState() {
+        viewModelScope.launch {
+            networkMonitor.isOnline.collect { isOnline ->
+                val wasOffline = isOffline
+                isOffline = !isOnline
+
+                // Update UI state
+                _uiState.update { it.copy(isOffline = !isOnline) }
+
+                // Show user notification when network state changes
+                if (!isOnline && !wasOffline) {
+                    // Just went offline
+                    addAssistantMessage(OfflineCapability.getOfflineModeMessage())
+                    showOfflineSuggestions()
+
+                    // Log offline event
+                    analytics.logError(
+                        errorType = AnalyticsEvent.ErrorOccurred.ErrorType.NETWORK_ERROR,
+                        message = "Device went offline",
+                        isRecoverable = true
+                    )
+                } else if (isOnline && wasOffline) {
+                    // Just came back online
+                    addAssistantMessage(OfflineCapability.getOnlineModeMessage())
+                    hideFallbackSuggestions()
+
+                    // Log reconnection
+                    analytics.logEvent(
+                        AnalyticsEvent.Custom(
+                            eventName = "network_reconnected",
+                            parameters = emptyMap()
+                        )
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -187,12 +242,20 @@ class ConversationViewModel @Inject constructor(
 
     /**
      * Process user input through the NavCaddy pipeline.
+     *
+     * Routes to offline handler if device is offline, otherwise uses full LLM pipeline.
      */
     private fun processUserInput(input: String) {
         viewModelScope.launch {
             try {
                 // Show loading state
                 _uiState.update { it.copy(isLoading = true) }
+
+                // Check if offline - use offline handler
+                if (isOffline) {
+                    handleOfflineInput(input)
+                    return@launch
+                }
 
                 // Start tracking classification latency
                 analytics.startLatencyTracking("classification")
@@ -277,6 +340,82 @@ class ConversationViewModel @Inject constructor(
                 _uiState.update { it.copy(isLoading = false) }
                 analytics.clearTracking()
             }
+        }
+    }
+
+    /**
+     * Handle user input when device is offline.
+     *
+     * Uses local keyword matching instead of LLM classification.
+     * Per spec C6: "If offline: disable LLM calls and provide a limited local-intent menu"
+     */
+    private suspend fun handleOfflineInput(input: String) {
+        try {
+            analytics.startLatencyTracking("offline_classification")
+
+            // Process with offline intent handler
+            val result = offlineIntentHandler.processOffline(input)
+
+            val latency = analytics.stopLatencyTracking("offline_classification")
+
+            when (result) {
+                is OfflineIntentHandler.OfflineResult.Match -> {
+                    // Successfully matched an offline-available intent
+                    analytics.logIntentClassified(
+                        intent = result.parsedIntent.intent.name,
+                        confidence = result.parsedIntent.confidence,
+                        latencyMs = latency,
+                        wasSuccessful = true
+                    )
+
+                    // Route through orchestrator
+                    val routeResult = ClassificationResult.Route(result.parsedIntent)
+                    handleRouteClassification(routeResult)
+                }
+
+                is OfflineIntentHandler.OfflineResult.Clarify -> {
+                    // Needs clarification
+                    analytics.logClarificationRequested(
+                        originalInput = input,
+                        confidence = result.clarification.confidence,
+                        suggestionsCount = result.clarification.suggestions.size
+                    )
+
+                    val clarifyResult = ClassificationResult.Clarify(
+                        message = result.clarification.message,
+                        suggestions = result.clarification.suggestions
+                    )
+                    handleClarifyClassification(clarifyResult)
+                }
+
+                is OfflineIntentHandler.OfflineResult.RequiresOnline -> {
+                    // User tried to use online-only feature
+                    addAssistantMessage(result.message)
+                    showOfflineSuggestions()
+                }
+
+                is OfflineIntentHandler.OfflineResult.NoMatch -> {
+                    // No match found
+                    addAssistantMessage(result.message)
+                    showOfflineSuggestions()
+                }
+            }
+
+        } catch (e: Exception) {
+            // Even offline processing failed
+            analytics.logError(
+                errorType = AnalyticsEvent.ErrorOccurred.ErrorType.UNKNOWN,
+                message = "Offline processing failed: ${e.message}",
+                isRecoverable = true,
+                throwable = e
+            )
+            addAssistantMessage(
+                "Sorry, I had trouble understanding that. Here are some things you can do offline:"
+            )
+            showOfflineSuggestions()
+        } finally {
+            _uiState.update { it.copy(isLoading = false) }
+            analytics.clearTracking()
         }
     }
 
@@ -372,7 +511,8 @@ class ConversationViewModel @Inject constructor(
         // Get error context
         val errorContext = ErrorContext(
             userInput = userInput,
-            attemptCount = retryAttempts
+            attemptCount = retryAttempts,
+            isOffline = isOffline
         )
 
         // Get recovery strategy
@@ -400,7 +540,8 @@ class ConversationViewModel @Inject constructor(
         )
 
         val context = ErrorContext(
-            attemptCount = retryAttempts
+            attemptCount = retryAttempts,
+            isOffline = isOffline
         )
 
         val strategy = errorHandler.handleError(error, context)
@@ -420,7 +561,8 @@ class ConversationViewModel @Inject constructor(
 
         val context = ErrorContext(
             userInput = userInput,
-            attemptCount = retryAttempts
+            attemptCount = retryAttempts,
+            isOffline = isOffline
         )
 
         val strategy = errorHandler.handleError(error, context)
@@ -526,7 +668,7 @@ class ConversationViewModel @Inject constructor(
         val lastInput = lastUserInput ?: ""
         val suggestions = localSuggestions.getSuggestions(
             input = lastInput,
-            isOffline = false,
+            isOffline = isOffline,
             maxSuggestions = 3  // Per spec A3: 3 suggested intents
         ).map { suggestion ->
             FallbackSuggestion(
@@ -582,10 +724,6 @@ class ConversationViewModel @Inject constructor(
                 showFallbackSuggestions = true
             )
         }
-
-        addAssistantMessage(
-            "Here are some things you can do offline. Full features will be back when you're connected."
-        )
     }
 
     /**
@@ -691,7 +829,7 @@ class ConversationViewModel @Inject constructor(
      * Clear conversation history.
      */
     private fun clearConversation() {
-        _uiState.update { ConversationState() }
+        _uiState.update { ConversationState(isOffline = isOffline) }
         sessionContextManager.clearConversationHistory()
         retryAttempts = 0
         lastUserInput = null

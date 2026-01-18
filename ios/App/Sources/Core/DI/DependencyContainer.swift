@@ -82,6 +82,13 @@ final class DependencyContainer {
         #endif
     }()
 
+    // MARK: - Offline Mode (Task 24)
+
+    /// Network monitor for connectivity status
+    lazy var networkMonitor: NetworkMonitor = {
+        NetworkMonitor()
+    }()
+
     // MARK: - Use Cases
 
     // lazy var loginUseCase: LoginUseCase = {

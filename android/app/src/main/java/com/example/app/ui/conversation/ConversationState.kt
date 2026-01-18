@@ -7,10 +7,10 @@ import caddypro.domain.navcaddy.models.IntentType
  * UI state for the conversation screen.
  *
  * Represents the current state of the conversational interface including
- * messages, loading states, and errors.
+ * messages, loading states, errors, and network connectivity.
  *
- * Spec reference: navcaddy-engine.md R1, R7
- * Plan reference: navcaddy-engine-plan.md Task 18, Task 23
+ * Spec reference: navcaddy-engine.md R1, R7, C6
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 23, Task 24
  */
 data class ConversationState(
     val messages: List<ConversationMessage> = emptyList(),
@@ -20,7 +20,8 @@ data class ConversationState(
     val isVoiceInputActive: Boolean = false,
     val recoveryActions: List<RecoveryAction> = emptyList(),
     val fallbackSuggestions: List<FallbackSuggestion> = emptyList(),
-    val showFallbackSuggestions: Boolean = false
+    val showFallbackSuggestions: Boolean = false,
+    val isOffline: Boolean = false
 )
 
 /**

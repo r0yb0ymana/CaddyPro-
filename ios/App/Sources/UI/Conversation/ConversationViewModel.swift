@@ -13,9 +13,10 @@ import Observation
  * 6. Voice input with speech recognition (Task 21)
  * 7. Analytics and observability (Task 22)
  * 8. Error handling and fallbacks (Task 23)
+ * 9. Offline mode with local intent processing (Task 24)
  *
- * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8
- * Plan reference: navcaddy-engine-plan.md Task 19, Task 21, Task 22, Task 23
+ * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8, C6
+ * Plan reference: navcaddy-engine-plan.md Task 19, Task 21, Task 22, Task 23, Task 24
  */
 @Observable
 @MainActor
@@ -34,6 +35,8 @@ final class ConversationViewModel {
     private let voiceInputManager: VoiceInputManager
     private let analytics: NavCaddyAnalytics
     private let errorHandler: NavCaddyErrorHandler
+    private let networkMonitor: NetworkMonitor
+    private let offlineIntentHandler: OfflineIntentHandler
 
     // MARK: - Session
 
@@ -61,6 +64,8 @@ final class ConversationViewModel {
         self.voiceInputManager = VoiceInputManager()
         self.analytics = dependencies.analytics
         self.errorHandler = NavCaddyErrorHandler(analytics: dependencies.analytics)
+        self.networkMonitor = dependencies.networkMonitor
+        self.offlineIntentHandler = OfflineIntentHandler(sessionContextManager: dependencies.sessionContextManager)
 
         // Add welcome message
         addAssistantMessage(
@@ -70,6 +75,9 @@ final class ConversationViewModel {
 
         // Start monitoring voice input state
         startMonitoringVoiceInput()
+
+        // Start monitoring network connectivity (Task 24)
+        startMonitoringNetwork()
     }
 
     // MARK: - Action Handling
@@ -137,72 +145,15 @@ final class ConversationViewModel {
                 // Show loading state
                 state.isLoading = true
 
-                // Get session context
-                let context = await sessionContextManager.getCurrentContext()
+                // Check network status (Task 24)
+                let networkStatus = networkMonitor.status
 
-                // Classify intent (with latency tracking)
-                let classificationStartTime = Date()
-                let classificationResult = await intentClassifier.classify(input: input, context: context)
-                let classificationLatency = Int(Date().timeIntervalSince(classificationStartTime) * 1000)
-
-                // Track classification latency
-                analytics.trackLatency(
-                    operation: "intent_classification",
-                    latencyMs: classificationLatency,
-                    sessionId: sessionId
-                )
-
-                // Handle classification result
-                switch classificationResult {
-                case .route(let intent, let target):
-                    // Track classified intent
-                    analytics.log(.intentClassified(IntentClassifiedEvent(
-                        intent: intent.intentType.rawValue,
-                        confidence: intent.confidence,
-                        latencyMs: classificationLatency,
-                        sessionId: sessionId
-                    )))
-
-                    await handleRouteClassification(intent: intent, target: target)
-
-                case .confirm(let intent, let message):
-                    // Track classified intent (confirmation required)
-                    analytics.log(.intentClassified(IntentClassifiedEvent(
-                        intent: intent.intentType.rawValue,
-                        confidence: intent.confidence,
-                        latencyMs: classificationLatency,
-                        sessionId: sessionId
-                    )))
-
-                    handleConfirmClassification(intent: intent, message: message)
-
-                case .clarify(let response):
-                    // Track clarification (low confidence)
-                    analytics.log(.intentClassified(IntentClassifiedEvent(
-                        intent: "CLARIFY",
-                        confidence: 0.0,
-                        latencyMs: classificationLatency,
-                        sessionId: sessionId
-                    )))
-
-                    handleClarifyClassification(response: response)
-
-                case .error(let error):
-                    // Handle error with error handler (Task 23)
-                    await handleClassificationError(error)
-                }
-
-                // Update session context with this turn
-                let lastAssistantMessage = state.messages.last(where: {
-                    if case .assistant = $0 { return true }
-                    return false
-                })
-
-                if case .assistant(let msg) = lastAssistantMessage {
-                    await sessionContextManager.addConversationTurn(
-                        userInput: input,
-                        assistantResponse: msg.text
-                    )
+                // If offline, use offline intent handler
+                if networkStatus.isDefinitelyOffline {
+                    await handleOfflineInput(input)
+                } else {
+                    // Online - use full LLM-powered pipeline
+                    await handleOnlineInput(input)
                 }
 
             } catch {
@@ -222,6 +173,176 @@ final class ConversationViewModel {
                 sessionId: sessionId
             )
         }
+    }
+
+    // MARK: - Online Pipeline
+
+    /// Handle input when online using LLM classifier.
+    private func handleOnlineInput(_ input: String) async {
+        // Get session context
+        let context = await sessionContextManager.getCurrentContext()
+
+        // Classify intent (with latency tracking)
+        let classificationStartTime = Date()
+        let classificationResult = await intentClassifier.classify(input: input, context: context)
+        let classificationLatency = Int(Date().timeIntervalSince(classificationStartTime) * 1000)
+
+        // Track classification latency
+        analytics.trackLatency(
+            operation: "intent_classification",
+            latencyMs: classificationLatency,
+            sessionId: sessionId
+        )
+
+        // Handle classification result
+        switch classificationResult {
+        case .route(let intent, let target):
+            // Track classified intent
+            analytics.log(.intentClassified(IntentClassifiedEvent(
+                intent: intent.intentType.rawValue,
+                confidence: intent.confidence,
+                latencyMs: classificationLatency,
+                sessionId: sessionId
+            )))
+
+            await handleRouteClassification(intent: intent, target: target)
+
+        case .confirm(let intent, let message):
+            // Track classified intent (confirmation required)
+            analytics.log(.intentClassified(IntentClassifiedEvent(
+                intent: intent.intentType.rawValue,
+                confidence: intent.confidence,
+                latencyMs: classificationLatency,
+                sessionId: sessionId
+            )))
+
+            handleConfirmClassification(intent: intent, message: message)
+
+        case .clarify(let response):
+            // Track clarification (low confidence)
+            analytics.log(.intentClassified(IntentClassifiedEvent(
+                intent: "CLARIFY",
+                confidence: 0.0,
+                latencyMs: classificationLatency,
+                sessionId: sessionId
+            )))
+
+            handleClarifyClassification(response: response)
+
+        case .error(let error):
+            // Check if we should fall back to offline mode
+            let networkStatus = networkMonitor.status
+            if networkStatus.isDefinitelyOffline {
+                // Network went down during processing - fall back to offline
+                await handleOfflineInput(input)
+            } else {
+                // Handle error with error handler (Task 23)
+                await handleClassificationError(error)
+            }
+        }
+
+        // Update session context with this turn
+        let lastAssistantMessage = state.messages.last(where: {
+            if case .assistant = $0 { return true }
+            return false
+        })
+
+        if case .assistant(let msg) = lastAssistantMessage {
+            await sessionContextManager.addConversationTurn(
+                userInput: input,
+                assistantResponse: msg.text
+            )
+        }
+    }
+
+    // MARK: - Offline Pipeline (Task 24)
+
+    /// Handle input when offline using local intent matching.
+    private func handleOfflineInput(_ input: String) async {
+        let startTime = Date()
+
+        // Process offline using keyword matching
+        let result = offlineIntentHandler.processOffline(input: input)
+
+        let latency = Int(Date().timeIntervalSince(startTime) * 1000)
+
+        // Track offline processing
+        analytics.log(.intentClassified(IntentClassifiedEvent(
+            intent: result.intentType?.rawValue ?? "OFFLINE_NO_MATCH",
+            confidence: result.isOfflineCapable ? 1.0 : 0.0,
+            latencyMs: latency,
+            sessionId: sessionId
+        )))
+
+        if result.isOfflineCapable, let target = result.routingTarget {
+            // Handle offline-capable intent
+            let routingStartTime = Date()
+
+            // Route through orchestrator
+            let routingResult = await routingOrchestrator.route(.route(
+                intent: ParsedIntent(
+                    intentType: result.intentType!,
+                    confidence: 1.0,
+                    entities: ExtractedEntities(),
+                    rawInput: input,
+                    normalizedInput: input
+                ),
+                target: target
+            ))
+
+            let routingLatency = Int(Date().timeIntervalSince(routingStartTime) * 1000)
+
+            switch routingResult {
+            case .navigate(let target, _):
+                analytics.trackLatency(
+                    operation: "routing",
+                    latencyMs: routingLatency,
+                    sessionId: sessionId
+                )
+
+                analytics.log(.routeExecuted(RouteExecutedEvent(
+                    module: target.module.rawValue,
+                    screen: target.screen,
+                    latencyMs: routingLatency,
+                    sessionId: sessionId
+                )))
+
+                // Navigate to target
+                let destination = NavCaddyDestination.from(routingTarget: target)
+                await navigationExecutor.navigate(to: destination)
+
+                // Add offline confirmation message
+                addAssistantMessage(result.message)
+
+            case .noNavigation, .prerequisiteMissing, .confirmationRequired:
+                // Display response
+                addAssistantMessage(result.message)
+            }
+        } else {
+            // Intent not available offline - show suggestions
+            addErrorMessage(result.message, isRecoverable: true)
+
+            if !result.suggestions.isEmpty {
+                let clarificationSuggestions = result.suggestions.map { suggestion in
+                    ClarificationSuggestion(
+                        intentType: suggestion.intentType,
+                        label: suggestion.label,
+                        description: suggestion.description
+                    )
+                }
+
+                addClarificationMessage(
+                    message: "Try one of these:",
+                    suggestions: Array(clarificationSuggestions.prefix(3))
+                )
+            }
+        }
+
+        // Update session context
+        await sessionContextManager.addConversationTurn(
+            userInput: input,
+            assistantResponse: result.message
+        )
     }
 
     /// Handle high-confidence route classification.
@@ -523,6 +644,49 @@ final class ConversationViewModel {
         errorHandler.clearRetryState()
     }
 
+    // MARK: - Network Monitoring (Task 24)
+
+    /// Start monitoring network connectivity.
+    private func startMonitoringNetwork() {
+        networkMonitor.startMonitoring()
+
+        // Monitor network state changes
+        Task {
+            await observeNetworkState()
+        }
+    }
+
+    /// Observe network state changes.
+    private func observeNetworkState() async {
+        withObservationTracking {
+            let _ = networkMonitor.isConnected
+        } onChange: {
+            Task { @MainActor in
+                self.handleNetworkStateChange()
+                await self.observeNetworkState()
+            }
+        }
+    }
+
+    /// Handle network state changes.
+    private func handleNetworkStateChange() {
+        let isConnected = networkMonitor.isConnected
+
+        // Update offline indicator in state
+        state.isOffline = !isConnected
+
+        // Show notification when offline/online transition happens
+        if networkMonitor.hasReceivedUpdate {
+            if isConnected {
+                // Just came back online
+                addAssistantMessage("You're back online! Full features are now available.")
+            } else {
+                // Just went offline
+                addAssistantMessage("You're offline. I can still help with score entry, stats, and equipment info.")
+            }
+        }
+    }
+
     // MARK: - Message Helpers
 
     /// Add user message to conversation.
@@ -602,6 +766,11 @@ final class ConversationViewModel {
     /// Get error patterns for debugging
     func debugErrorPatterns() -> [ErrorPattern] {
         errorHandler.detectPatterns(sessionId: sessionId)
+    }
+
+    /// Get network status for debugging
+    var debugNetworkStatus: NetworkStatus {
+        networkMonitor.status
     }
     #endif
 }

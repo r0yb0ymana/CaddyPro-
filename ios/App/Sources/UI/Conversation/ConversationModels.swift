@@ -4,10 +4,10 @@ import Foundation
  * UI models for the conversation screen.
  *
  * Represents the current state of the conversational interface including
- * messages, loading states, and errors.
+ * messages, loading states, errors, and offline mode.
  *
- * Spec reference: navcaddy-engine.md R1, R7
- * Plan reference: navcaddy-engine-plan.md Task 19
+ * Spec reference: navcaddy-engine.md R1, R7, C6
+ * Plan reference: navcaddy-engine-plan.md Task 19, Task 24
  */
 
 // MARK: - Conversation State
@@ -19,6 +19,7 @@ struct ConversationState {
     var error: String? = nil
     var currentInput: String = ""
     var isVoiceInputActive: Bool = false
+    var isOffline: Bool = false // Task 24: Offline mode indicator
 }
 
 // MARK: - Conversation Message

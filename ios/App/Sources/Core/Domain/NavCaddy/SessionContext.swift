@@ -4,6 +4,7 @@ import Foundation
 ///
 /// Spec R6: Maintains current round, hole, last shot, and conversation history.
 struct SessionContext: Codable, Hashable {
+    let sessionId: String
     let currentRound: Round?
     let currentHole: Int?
     let lastShot: Shot?
@@ -11,12 +12,14 @@ struct SessionContext: Codable, Hashable {
     let conversationHistory: [ConversationTurn]
 
     init(
+        sessionId: String = UUID().uuidString,
         currentRound: Round? = nil,
         currentHole: Int? = nil,
         lastShot: Shot? = nil,
         lastRecommendation: String? = nil,
         conversationHistory: [ConversationTurn] = []
     ) {
+        self.sessionId = sessionId
         self.currentRound = currentRound
         self.currentHole = currentHole
         self.lastShot = lastShot
@@ -35,6 +38,7 @@ struct SessionContext: Codable, Hashable {
         }
 
         return SessionContext(
+            sessionId: sessionId,
             currentRound: currentRound,
             currentHole: currentHole,
             lastShot: lastShot,
@@ -46,5 +50,10 @@ struct SessionContext: Codable, Hashable {
     /// Returns a new context with all fields cleared
     static var empty: SessionContext {
         SessionContext()
+    }
+
+    /// Whether a round is currently active.
+    var isRoundActive: Bool {
+        currentRound != nil
     }
 }

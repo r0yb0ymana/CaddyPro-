@@ -49,6 +49,7 @@ final class SessionContextManager {
         )
 
         context = SessionContext(
+            sessionId: context.sessionId,
             currentRound: round,
             currentHole: context.currentHole,
             lastShot: context.lastShot,
@@ -68,6 +69,7 @@ final class SessionContextManager {
         }
 
         context = SessionContext(
+            sessionId: context.sessionId,
             currentRound: context.currentRound,
             currentHole: holeNumber,
             lastShot: context.lastShot,
@@ -85,6 +87,7 @@ final class SessionContextManager {
     /// - Parameter shot: The shot to record
     func recordShot(_ shot: Shot) {
         context = SessionContext(
+            sessionId: context.sessionId,
             currentRound: context.currentRound,
             currentHole: context.currentHole,
             lastShot: shot,
@@ -100,6 +103,7 @@ final class SessionContextManager {
     /// - Parameter recommendation: The recommendation text
     func recordRecommendation(_ recommendation: String) {
         context = SessionContext(
+            sessionId: context.sessionId,
             currentRound: context.currentRound,
             currentHole: context.currentHole,
             lastShot: context.lastShot,
@@ -137,6 +141,7 @@ final class SessionContextManager {
         // Update context with new history
         let recentTurns = conversationHistory.getRecent(count: 10)
         context = SessionContext(
+            sessionId: context.sessionId,
             currentRound: context.currentRound,
             currentHole: context.currentHole,
             lastShot: context.lastShot,
@@ -151,6 +156,19 @@ final class SessionContextManager {
     func clearSession() {
         conversationHistory.clear()
         context = SessionContext.empty
+    }
+
+    /// Clears only the conversation history (keeps round state).
+    func clearConversationHistory() {
+        conversationHistory.clear()
+        context = SessionContext(
+            sessionId: context.sessionId,
+            currentRound: context.currentRound,
+            currentHole: context.currentHole,
+            lastShot: context.lastShot,
+            lastRecommendation: context.lastRecommendation,
+            conversationHistory: []
+        )
     }
 
     // MARK: - Context Retrieval
