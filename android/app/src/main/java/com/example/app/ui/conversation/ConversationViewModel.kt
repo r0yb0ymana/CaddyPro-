@@ -7,8 +7,12 @@ import caddypro.analytics.NavCaddyAnalytics
 import caddypro.domain.navcaddy.classifier.ClassificationResult
 import caddypro.domain.navcaddy.classifier.IntentClassifier
 import caddypro.domain.navcaddy.context.SessionContextManager
+import caddypro.domain.navcaddy.error.ErrorContext
+import caddypro.domain.navcaddy.error.NavCaddyError
+import caddypro.domain.navcaddy.error.NavCaddyErrorHandler
+import caddypro.domain.navcaddy.error.RecoveryAction
+import caddypro.domain.navcaddy.fallback.LocalIntentSuggestions
 import caddypro.domain.navcaddy.models.IntentType
-import caddypro.domain.navcaddy.models.Role
 import caddypro.domain.navcaddy.navigation.NavCaddyNavigator
 import caddypro.domain.navcaddy.persona.BonesResponseFormatter
 import caddypro.domain.navcaddy.routing.RoutingOrchestrator
@@ -34,9 +38,10 @@ import javax.inject.Inject
  * 5. Response formatting with Bones persona
  * 6. Voice input integration (Task 20)
  * 7. Analytics and observability (Task 22)
+ * 8. Error handling and fallbacks (Task 23)
  *
- * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8
- * Plan reference: navcaddy-engine-plan.md Task 18, Task 20, Task 22
+ * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8, G6
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 20, Task 22, Task 23
  */
 @HiltViewModel
 class ConversationViewModel @Inject constructor(
@@ -46,11 +51,17 @@ class ConversationViewModel @Inject constructor(
     private val navigator: NavCaddyNavigator,
     private val responseFormatter: BonesResponseFormatter,
     private val voiceInputManager: VoiceInputManager,
-    private val analytics: NavCaddyAnalytics
+    private val analytics: NavCaddyAnalytics,
+    private val errorHandler: NavCaddyErrorHandler,
+    private val localSuggestions: LocalIntentSuggestions
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationState())
     val uiState: StateFlow<ConversationState> = _uiState.asStateFlow()
+
+    // Track error retry attempts
+    private var retryAttempts = 0
+    private var lastUserInput: String? = null
 
     init {
         // Start analytics session
@@ -99,7 +110,7 @@ class ConversationViewModel @Inject constructor(
                     }
 
                     is VoiceInputState.Error -> {
-                        // Voice input error
+                        // Voice input error - use error handler
                         val latency = analytics.stopLatencyTracking("voice_transcription")
                         analytics.logVoiceTranscription(
                             latencyMs = latency,
@@ -111,7 +122,7 @@ class ConversationViewModel @Inject constructor(
                             message = voiceState.message,
                             isRecoverable = true
                         )
-                        handleVoiceInputError(voiceState.message)
+                        handleVoiceTranscriptionError(voiceState.message)
                     }
                 }
             }
@@ -135,6 +146,10 @@ class ConversationViewModel @Inject constructor(
             is ConversationAction.RejectIntent -> handleRejectIntent(action.intentId)
             is ConversationAction.Retry -> handleRetry()
             is ConversationAction.ClearConversation -> clearConversation()
+            is ConversationAction.SelectRecoveryAction -> handleRecoveryAction(action.action)
+            is ConversationAction.SelectFallbackSuggestion -> handleFallbackSuggestion(action.intentType, action.label)
+            is ConversationAction.ShowFallbackSuggestions -> showFallbackSuggestions()
+            is ConversationAction.HideFallbackSuggestions -> hideFallbackSuggestions()
         }
     }
 
@@ -145,6 +160,10 @@ class ConversationViewModel @Inject constructor(
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) return
 
+        // Reset retry counter on new input
+        retryAttempts = 0
+        lastUserInput = trimmedText
+
         // Log input received
         analytics.logInputReceived(
             inputType = AnalyticsEvent.InputReceived.InputType.TEXT,
@@ -154,8 +173,13 @@ class ConversationViewModel @Inject constructor(
         // Add user message to conversation
         addUserMessage(trimmedText)
 
-        // Clear input
-        _uiState.update { it.copy(currentInput = "") }
+        // Clear input and hide fallback suggestions
+        _uiState.update {
+            it.copy(
+                currentInput = "",
+                showFallbackSuggestions = false
+            )
+        }
 
         // Process the message
         processUserInput(trimmedText)
@@ -224,7 +248,7 @@ class ConversationViewModel @Inject constructor(
                             latencyMs = classificationLatency,
                             wasSuccessful = false
                         )
-                        handleErrorClassification(classificationResult)
+                        handleErrorClassification(classificationResult, input)
                     }
                 }
 
@@ -248,10 +272,7 @@ class ConversationViewModel @Inject constructor(
                     isRecoverable = true,
                     throwable = e
                 )
-                addErrorMessage(
-                    message = "Something went wrong. Please try again.",
-                    isRecoverable = true
-                )
+                handleUnexpectedError(e, input)
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
                 analytics.clearTracking()
@@ -337,43 +358,83 @@ class ConversationViewModel @Inject constructor(
     }
 
     /**
-     * Handle classification error.
+     * Handle classification error with error handler.
      */
-    private fun handleErrorClassification(result: ClassificationResult.Error) {
-        val errorType = when {
-            result.cause is java.net.UnknownHostException -> {
-                analytics.logError(
-                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.NETWORK_ERROR,
-                    message = "Network unavailable",
-                    isRecoverable = true,
-                    throwable = result.cause
-                )
-                BonesResponseFormatter.ErrorType.NETWORK_ERROR
-            }
+    private fun handleErrorClassification(result: ClassificationResult.Error, userInput: String) {
+        retryAttempts++
 
-            result.cause is java.util.concurrent.TimeoutException -> {
-                analytics.logError(
-                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.TIMEOUT,
-                    message = "Request timed out",
-                    isRecoverable = true,
-                    throwable = result.cause
-                )
-                BonesResponseFormatter.ErrorType.TIMEOUT
-            }
+        // Create NavCaddyError from classification error
+        val navCaddyError = NavCaddyError.fromThrowable(
+            throwable = result.cause ?: IllegalStateException("Classification failed"),
+            userInput = userInput
+        )
 
-            else -> {
-                analytics.logError(
-                    errorType = AnalyticsEvent.ErrorOccurred.ErrorType.SERVICE_UNAVAILABLE,
-                    message = result.cause?.message ?: "Service unavailable",
-                    isRecoverable = true,
-                    throwable = result.cause
-                )
-                BonesResponseFormatter.ErrorType.SERVICE_UNAVAILABLE
-            }
+        // Get error context
+        val errorContext = ErrorContext(
+            userInput = userInput,
+            attemptCount = retryAttempts
+        )
+
+        // Get recovery strategy
+        val recoveryStrategy = errorHandler.handleError(navCaddyError, errorContext)
+
+        // Add error message with recovery options
+        addErrorMessage(
+            message = recoveryStrategy.userMessage,
+            isRecoverable = true,
+            recoveryActions = recoveryStrategy.actions
+        )
+
+        // Show fallback suggestions if available
+        if (recoveryStrategy.suggestedIntents.isNotEmpty()) {
+            showFallbackSuggestionsForIntents(recoveryStrategy.suggestedIntents)
         }
+    }
 
-        val formattedError = responseFormatter.formatError(errorType)
-        addErrorMessage(formattedError, isRecoverable = true)
+    /**
+     * Handle voice transcription error.
+     */
+    private fun handleVoiceTranscriptionError(errorMessage: String) {
+        val error = NavCaddyError.TranscriptionError(
+            message = errorMessage
+        )
+
+        val context = ErrorContext(
+            attemptCount = retryAttempts
+        )
+
+        val strategy = errorHandler.handleError(error, context)
+
+        addErrorMessage(
+            message = strategy.userMessage,
+            isRecoverable = true,
+            recoveryActions = strategy.actions
+        )
+    }
+
+    /**
+     * Handle unexpected errors.
+     */
+    private fun handleUnexpectedError(throwable: Throwable, userInput: String?) {
+        val error = NavCaddyError.fromThrowable(throwable, userInput)
+
+        val context = ErrorContext(
+            userInput = userInput,
+            attemptCount = retryAttempts
+        )
+
+        val strategy = errorHandler.handleError(error, context)
+
+        addErrorMessage(
+            message = strategy.userMessage,
+            isRecoverable = errorHandler.isRecoverable(error),
+            recoveryActions = strategy.actions
+        )
+
+        // Show fallback suggestions for unknown errors
+        if (strategy.suggestedIntents.isNotEmpty()) {
+            showFallbackSuggestionsForIntents(strategy.suggestedIntents)
+        }
     }
 
     /**
@@ -398,6 +459,142 @@ class ConversationViewModel @Inject constructor(
 
         // Process the selected intent as if user typed it
         processUserInput(label)
+    }
+
+    /**
+     * Handle recovery action selection.
+     */
+    private fun handleRecoveryAction(action: RecoveryAction) {
+        when (action) {
+            RecoveryAction.Retry, RecoveryAction.RetryWithNetwork, RecoveryAction.RetryLater -> {
+                handleRetry()
+            }
+            RecoveryAction.RetryVoice -> {
+                startVoiceInput()
+            }
+            RecoveryAction.UseTextInput -> {
+                // Dismiss error and show input bar
+                dismissError()
+            }
+            RecoveryAction.UseOfflineMode -> {
+                showOfflineSuggestions()
+            }
+            RecoveryAction.ShowLocalSuggestions, RecoveryAction.ShowCommonIntents -> {
+                showFallbackSuggestions()
+            }
+            RecoveryAction.ShowClarification -> {
+                // Already shown in error message
+                dismissError()
+            }
+            RecoveryAction.ShowHelp -> {
+                processUserInput("help")
+            }
+            RecoveryAction.RestartConversation -> {
+                clearConversation()
+            }
+            RecoveryAction.Cancel -> {
+                dismissError()
+            }
+            else -> {
+                // Other actions not yet implemented
+                dismissError()
+            }
+        }
+    }
+
+    /**
+     * Handle fallback suggestion selection.
+     */
+    private fun handleFallbackSuggestion(intentType: IntentType, label: String) {
+        analytics.logSuggestionSelected(
+            intentType = intentType.name,
+            suggestionIndex = -1 // Fallback suggestion
+        )
+
+        // Add user message and process
+        addUserMessage(label)
+        processUserInput(label)
+
+        // Hide fallback suggestions
+        hideFallbackSuggestions()
+    }
+
+    /**
+     * Show fallback suggestions.
+     */
+    private fun showFallbackSuggestions() {
+        val lastInput = lastUserInput ?: ""
+        val suggestions = localSuggestions.getSuggestions(
+            input = lastInput,
+            isOffline = false,
+            maxSuggestions = 3  // Per spec A3: 3 suggested intents
+        ).map { suggestion ->
+            FallbackSuggestion(
+                intentType = suggestion.intentType,
+                label = suggestion.label,
+                description = suggestion.description
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                fallbackSuggestions = suggestions,
+                showFallbackSuggestions = true
+            )
+        }
+    }
+
+    /**
+     * Show fallback suggestions for specific intents.
+     */
+    private fun showFallbackSuggestionsForIntents(intents: List<IntentType>) {
+        val suggestions = intents.take(5).map { intentType ->
+            FallbackSuggestion(
+                intentType = intentType,
+                label = intentType.displayName,
+                description = intentType.description
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                fallbackSuggestions = suggestions,
+                showFallbackSuggestions = true
+            )
+        }
+    }
+
+    /**
+     * Show offline-available suggestions only.
+     */
+    private fun showOfflineSuggestions() {
+        val suggestions = localSuggestions.getOfflineIntents().map { suggestion ->
+            FallbackSuggestion(
+                intentType = suggestion.intentType,
+                label = suggestion.label,
+                description = suggestion.description
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                fallbackSuggestions = suggestions,
+                showFallbackSuggestions = true
+            )
+        }
+
+        addAssistantMessage(
+            "Here are some things you can do offline. Full features will be back when you're connected."
+        )
+    }
+
+    /**
+     * Hide fallback suggestions.
+     */
+    private fun hideFallbackSuggestions() {
+        _uiState.update {
+            it.copy(showFallbackSuggestions = false)
+        }
     }
 
     /**
@@ -461,14 +658,19 @@ class ConversationViewModel @Inject constructor(
     private fun handleVoiceInputError(error: String) {
         _uiState.update { it.copy(isVoiceInputActive = false) }
         voiceInputManager.resetState()
-        addErrorMessage("Voice input failed: $error", isRecoverable = true)
+        handleVoiceTranscriptionError(error)
     }
 
     /**
      * Dismiss error.
      */
     private fun dismissError() {
-        _uiState.update { it.copy(error = null) }
+        _uiState.update {
+            it.copy(
+                error = null,
+                recoveryActions = emptyList()
+            )
+        }
     }
 
     /**
@@ -476,12 +678,12 @@ class ConversationViewModel @Inject constructor(
      */
     private fun handleRetry() {
         // Get last user message and retry
-        val lastUserMessage = _uiState.value.messages.lastOrNull {
-            it is ConversationMessage.User
-        } as? ConversationMessage.User
-
-        if (lastUserMessage != null) {
-            processUserInput(lastUserMessage.text)
+        val lastInput = lastUserInput
+        if (lastInput != null) {
+            retryAttempts++
+            processUserInput(lastInput)
+        } else {
+            addAssistantMessage("What would you like help with?")
         }
     }
 
@@ -491,6 +693,8 @@ class ConversationViewModel @Inject constructor(
     private fun clearConversation() {
         _uiState.update { ConversationState() }
         sessionContextManager.clearConversationHistory()
+        retryAttempts = 0
+        lastUserInput = null
 
         // Start new analytics session
         analytics.startSession()
@@ -535,15 +739,23 @@ class ConversationViewModel @Inject constructor(
     }
 
     /**
-     * Add error message to conversation.
+     * Add error message to conversation with recovery options.
      */
-    private fun addErrorMessage(message: String, isRecoverable: Boolean) {
+    private fun addErrorMessage(
+        message: String,
+        isRecoverable: Boolean,
+        recoveryActions: List<RecoveryAction> = emptyList()
+    ) {
         val errorMessage = ConversationMessage.Error(
             message = message,
-            isRecoverable = isRecoverable
+            isRecoverable = isRecoverable,
+            recoveryActions = recoveryActions
         )
         _uiState.update { state ->
-            state.copy(messages = state.messages + errorMessage)
+            state.copy(
+                messages = state.messages + errorMessage,
+                recoveryActions = recoveryActions
+            )
         }
     }
 

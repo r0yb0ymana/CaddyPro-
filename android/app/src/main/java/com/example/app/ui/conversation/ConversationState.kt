@@ -1,5 +1,6 @@
 package caddypro.ui.conversation
 
+import caddypro.domain.navcaddy.error.RecoveryAction
 import caddypro.domain.navcaddy.models.IntentType
 
 /**
@@ -9,14 +10,17 @@ import caddypro.domain.navcaddy.models.IntentType
  * messages, loading states, and errors.
  *
  * Spec reference: navcaddy-engine.md R1, R7
- * Plan reference: navcaddy-engine-plan.md Task 18
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 23
  */
 data class ConversationState(
     val messages: List<ConversationMessage> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val currentInput: String = "",
-    val isVoiceInputActive: Boolean = false
+    val isVoiceInputActive: Boolean = false,
+    val recoveryActions: List<RecoveryAction> = emptyList(),
+    val fallbackSuggestions: List<FallbackSuggestion> = emptyList(),
+    val showFallbackSuggestions: Boolean = false
 )
 
 /**
@@ -62,13 +66,14 @@ sealed class ConversationMessage {
     }
 
     /**
-     * Error message (for conversation errors).
+     * Error message with recovery options (for conversation errors).
      */
     data class Error(
         override val id: String = generateId(),
         override val timestamp: Long = System.currentTimeMillis(),
         val message: String,
-        val isRecoverable: Boolean = true
+        val isRecoverable: Boolean = true,
+        val recoveryActions: List<RecoveryAction> = emptyList()
     ) : ConversationMessage()
 
     companion object {
@@ -81,6 +86,15 @@ sealed class ConversationMessage {
  * Represents a clarification suggestion chip.
  */
 data class ClarificationSuggestion(
+    val intentType: IntentType,
+    val label: String,
+    val description: String
+)
+
+/**
+ * Represents a fallback suggestion when LLM/network unavailable.
+ */
+data class FallbackSuggestion(
     val intentType: IntentType,
     val label: String,
     val description: String

@@ -12,9 +12,10 @@ import Observation
  * 5. Response formatting with Bones persona
  * 6. Voice input with speech recognition (Task 21)
  * 7. Analytics and observability (Task 22)
+ * 8. Error handling and fallbacks (Task 23)
  *
  * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7, R8
- * Plan reference: navcaddy-engine-plan.md Task 19, Task 21, Task 22
+ * Plan reference: navcaddy-engine-plan.md Task 19, Task 21, Task 22, Task 23
  */
 @Observable
 @MainActor
@@ -32,6 +33,7 @@ final class ConversationViewModel {
     private let responseFormatter: BonesResponseFormatter
     private let voiceInputManager: VoiceInputManager
     private let analytics: NavCaddyAnalytics
+    private let errorHandler: NavCaddyErrorHandler
 
     // MARK: - Session
 
@@ -58,6 +60,7 @@ final class ConversationViewModel {
         self.responseFormatter = BonesResponseFormatter()
         self.voiceInputManager = VoiceInputManager()
         self.analytics = dependencies.analytics
+        self.errorHandler = NavCaddyErrorHandler(analytics: dependencies.analytics)
 
         // Add welcome message
         addAssistantMessage(
@@ -185,15 +188,8 @@ final class ConversationViewModel {
                     handleClarifyClassification(response: response)
 
                 case .error(let error):
-                    // Track error
-                    analytics.log(.errorOccurred(ErrorOccurredEvent(
-                        errorType: .classification,
-                        message: error.userMessage,
-                        isRecoverable: error.isRecoverable,
-                        sessionId: sessionId
-                    )))
-
-                    handleErrorClassification(error: error)
+                    // Handle error with error handler (Task 23)
+                    await handleClassificationError(error)
                 }
 
                 // Update session context with this turn
@@ -210,18 +206,9 @@ final class ConversationViewModel {
                 }
 
             } catch {
-                // Track unexpected error
-                analytics.log(.errorOccurred(ErrorOccurredEvent(
-                    errorType: .unknown,
-                    message: error.localizedDescription,
-                    isRecoverable: true,
-                    sessionId: sessionId
-                )))
-
-                addErrorMessage(
-                    message: "Something went wrong. Please try again.",
-                    isRecoverable: true
-                )
+                // Handle unexpected errors with error handler
+                let navCaddyError = NavCaddyError.unknown(error.localizedDescription)
+                await handleUnexpectedError(navCaddyError)
             }
 
             // Hide loading state
@@ -305,33 +292,40 @@ final class ConversationViewModel {
         )
     }
 
-    /// Handle classification error.
-    private func handleErrorClassification(error: LLMError) {
-        let errorMessage: String
-        let errorType: ErrorOccurredEvent.ErrorType
+    // MARK: - Error Handling (Task 23)
 
-        switch error {
-        case .networkError:
-            errorMessage = "Network error. Please check your connection and try again."
-            errorType = .network
-        case .timeout:
-            errorMessage = "Request timed out. Please try again."
-            errorType = .timeout
-        case .apiError(let code, let message):
-            errorMessage = "API error (\(code)): \(message)"
-            errorType = .classification
-        case .parseError:
-            errorMessage = "I couldn't understand the response. Please try rephrasing."
-            errorType = .classification
-        case .unauthorized:
-            errorMessage = "Authentication error. Please check your settings."
-            errorType = .classification
-        case .unknown(let message):
-            errorMessage = "Error: \(message)"
-            errorType = .unknown
+    /// Handle classification error with error handler.
+    private func handleClassificationError(_ error: Error) async {
+        // Convert to NavCaddyError if it's an LLMError
+        let navCaddyError: NavCaddyError
+        if let llmError = error as? LLMError {
+            navCaddyError = NavCaddyError.from(llmError: llmError)
+        } else {
+            navCaddyError = NavCaddyError.unknown(error.localizedDescription)
         }
 
-        addErrorMessage(errorMessage, isRecoverable: true)
+        await handleUnexpectedError(navCaddyError)
+    }
+
+    /// Handle unexpected error with recovery strategy.
+    private func handleUnexpectedError(_ error: NavCaddyError) async {
+        let context = await sessionContextManager.getCurrentContext()
+
+        // Get recovery strategy from error handler
+        let strategy = errorHandler.handle(error, context: context)
+
+        // Display error with recovery options
+        if strategy.hasSuggestions {
+            // Show error with suggestions
+            addErrorWithSuggestions(
+                message: strategy.userMessage,
+                suggestions: strategy.suggestions,
+                isRecoverable: strategy.isRecoverable
+            )
+        } else {
+            // Show simple error message
+            addErrorMessage(strategy.userMessage, isRecoverable: strategy.isRecoverable)
+        }
     }
 
     /// Handle suggestion chip selection.
@@ -415,17 +409,39 @@ final class ConversationViewModel {
             }
 
         case .error(let error):
-            // Track voice input error
+            // Handle voice error with error handler (Task 23)
+            state.isVoiceInputActive = false
+            handleVoiceError(error)
+        }
+    }
+
+    /// Handle voice input error with error handler.
+    private func handleVoiceError(_ error: VoiceInputError) {
+        Task {
+            let navCaddyError = NavCaddyError.from(voiceError: error)
+            let context = await sessionContextManager.getCurrentContext()
+
+            // Get recovery strategy
+            let strategy = errorHandler.handle(voiceError: error, context: context)
+
+            // Track error
             analytics.log(.errorOccurred(ErrorOccurredEvent(
                 errorType: .transcription,
-                message: error.userMessage,
-                isRecoverable: error.isRecoverable,
+                message: strategy.userMessage,
+                isRecoverable: strategy.isRecoverable,
                 sessionId: sessionId
             )))
 
-            // Handle voice input error
-            state.isVoiceInputActive = false
-            addErrorMessage(error.userMessage, isRecoverable: error.isRecoverable)
+            // Display error with recovery options
+            if strategy.hasSuggestions {
+                addErrorWithSuggestions(
+                    message: strategy.userMessage,
+                    suggestions: strategy.suggestions,
+                    isRecoverable: strategy.isRecoverable
+                )
+            } else {
+                addErrorMessage(strategy.userMessage, isRecoverable: strategy.isRecoverable)
+            }
         }
     }
 
@@ -502,6 +518,9 @@ final class ConversationViewModel {
         addAssistantMessage(
             "Hi! I'm Bones, your digital caddy. How can I help?"
         )
+
+        // Clear error handler retry state
+        errorHandler.clearRetryState()
     }
 
     // MARK: - Message Helpers
@@ -540,6 +559,33 @@ final class ConversationViewModel {
         state.messages.append(errorMessage)
     }
 
+    /// Add error message with suggestions (Task 23).
+    private func addErrorWithSuggestions(
+        message: String,
+        suggestions: [IntentSuggestion],
+        isRecoverable: Bool
+    ) {
+        // Convert IntentSuggestion to ClarificationSuggestion
+        let clarificationSuggestions = suggestions.map { suggestion in
+            ClarificationSuggestion(
+                intentType: suggestion.intentType,
+                label: suggestion.label,
+                description: suggestion.description
+            )
+        }
+
+        // Add error message first
+        addErrorMessage(message, isRecoverable: isRecoverable)
+
+        // Add suggestions as clarification message if we have any
+        if !clarificationSuggestions.isEmpty {
+            addClarificationMessage(
+                message: "Here are some things I can help with:",
+                suggestions: Array(clarificationSuggestions.prefix(3))
+            )
+        }
+    }
+
     // MARK: - Debug Helpers
 
     #if DEBUG
@@ -551,6 +597,11 @@ final class ConversationViewModel {
     /// Get the analytics service for debugging
     var debugAnalytics: NavCaddyAnalytics {
         analytics
+    }
+
+    /// Get error patterns for debugging
+    func debugErrorPatterns() -> [ErrorPattern] {
+        errorHandler.detectPatterns(sessionId: sessionId)
     }
     #endif
 }

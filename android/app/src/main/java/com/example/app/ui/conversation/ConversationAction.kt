@@ -1,5 +1,6 @@
 package caddypro.ui.conversation
 
+import caddypro.domain.navcaddy.error.RecoveryAction
 import caddypro.domain.navcaddy.models.IntentType
 
 /**
@@ -9,7 +10,7 @@ import caddypro.domain.navcaddy.models.IntentType
  * conversational interface.
  *
  * Spec reference: navcaddy-engine.md R1, R7
- * Plan reference: navcaddy-engine-plan.md Task 18
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 23
  */
 sealed interface ConversationAction {
     /**
@@ -71,4 +72,24 @@ sealed interface ConversationAction {
      * Clear conversation history.
      */
     data object ClearConversation : ConversationAction
+
+    /**
+     * User selected a recovery action (Task 23).
+     */
+    data class SelectRecoveryAction(val action: RecoveryAction) : ConversationAction
+
+    /**
+     * User selected a fallback suggestion (Task 23).
+     */
+    data class SelectFallbackSuggestion(val intentType: IntentType, val label: String) : ConversationAction
+
+    /**
+     * Show fallback suggestions manually.
+     */
+    data object ShowFallbackSuggestions : ConversationAction
+
+    /**
+     * Hide fallback suggestions.
+     */
+    data object HideFallbackSuggestions : ConversationAction
 }
