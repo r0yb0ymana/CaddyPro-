@@ -45,6 +45,23 @@ final class DependencyContainer {
         NavigationExecutor(coordinator: navigationCoordinator, deepLinkBuilder: deepLinkBuilder)
     }()
 
+    // MARK: - Memory Management (Task 14)
+
+    /// Shot recorder for tracking shots
+    lazy var shotRecorder: ShotRecorder = {
+        ShotRecorder(repository: navCaddyRepository)
+    }()
+
+    /// Pattern aggregator for miss pattern analysis
+    lazy var missPatternAggregator: MissPatternAggregator = {
+        MissPatternAggregator(repository: navCaddyRepository)
+    }()
+
+    /// Miss pattern store - main interface for miss pattern operations
+    lazy var missPatternStore: MissPatternStore = {
+        MissPatternStore(repository: navCaddyRepository)
+    }()
+
     // MARK: - Use Cases
 
     // lazy var loginUseCase: LoginUseCase = {
