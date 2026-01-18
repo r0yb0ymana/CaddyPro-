@@ -11,6 +11,8 @@ import caddypro.domain.navcaddy.navigation.NavCaddyNavigator
 import caddypro.domain.navcaddy.persona.BonesResponseFormatter
 import caddypro.domain.navcaddy.routing.RoutingOrchestrator
 import caddypro.domain.navcaddy.routing.RoutingResult
+import caddypro.ui.conversation.voice.VoiceInputManager
+import caddypro.ui.conversation.voice.VoiceInputState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,9 +30,10 @@ import javax.inject.Inject
  * 3. Session context management
  * 4. Navigation execution
  * 5. Response formatting with Bones persona
+ * 6. Voice input integration (Task 20)
  *
  * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7
- * Plan reference: navcaddy-engine-plan.md Task 18
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 20
  */
 @HiltViewModel
 class ConversationViewModel @Inject constructor(
@@ -38,7 +41,8 @@ class ConversationViewModel @Inject constructor(
     private val routingOrchestrator: RoutingOrchestrator,
     private val sessionContextManager: SessionContextManager,
     private val navigator: NavCaddyNavigator,
-    private val responseFormatter: BonesResponseFormatter
+    private val responseFormatter: BonesResponseFormatter,
+    private val voiceInputManager: VoiceInputManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationState())
@@ -50,6 +54,42 @@ class ConversationViewModel @Inject constructor(
             "Hi! I'm Bones, your digital caddy. Ask me about club selection, " +
                     "check your recovery, enter scores, or get coaching tips. How can I help?"
         )
+
+        // Observe voice input state
+        observeVoiceInputState()
+    }
+
+    /**
+     * Observe voice input state changes and update UI accordingly.
+     */
+    private fun observeVoiceInputState() {
+        viewModelScope.launch {
+            voiceInputManager.state.collect { voiceState ->
+                when (voiceState) {
+                    is VoiceInputState.Idle -> {
+                        _uiState.update { it.copy(isVoiceInputActive = false) }
+                    }
+
+                    is VoiceInputState.Listening -> {
+                        _uiState.update { it.copy(isVoiceInputActive = true) }
+                    }
+
+                    is VoiceInputState.Processing -> {
+                        _uiState.update { it.copy(isVoiceInputActive = true) }
+                    }
+
+                    is VoiceInputState.Result -> {
+                        // Voice input completed successfully
+                        handleVoiceInputComplete(voiceState.transcription)
+                    }
+
+                    is VoiceInputState.Error -> {
+                        // Voice input error
+                        handleVoiceInputError(voiceState.message)
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -248,18 +288,17 @@ class ConversationViewModel @Inject constructor(
     }
 
     /**
-     * Start voice input (placeholder for Task 20).
+     * Start voice input using VoiceInputManager.
      */
     private fun startVoiceInput() {
-        _uiState.update { it.copy(isVoiceInputActive = true) }
-        // TODO: Implement voice input in Task 20
+        voiceInputManager.startListening()
     }
 
     /**
      * Stop voice input.
      */
     private fun stopVoiceInput() {
-        _uiState.update { it.copy(isVoiceInputActive = false) }
+        voiceInputManager.stopListening()
     }
 
     /**
@@ -267,6 +306,8 @@ class ConversationViewModel @Inject constructor(
      */
     private fun handleVoiceInputComplete(transcription: String) {
         _uiState.update { it.copy(isVoiceInputActive = false) }
+        voiceInputManager.resetState()
+
         if (transcription.isNotBlank()) {
             handleSendMessage(transcription)
         }
@@ -277,6 +318,7 @@ class ConversationViewModel @Inject constructor(
      */
     private fun handleVoiceInputError(error: String) {
         _uiState.update { it.copy(isVoiceInputActive = false) }
+        voiceInputManager.resetState()
         addErrorMessage("Voice input failed: $error", isRecoverable = true)
     }
 
@@ -357,6 +399,12 @@ class ConversationViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(messages = state.messages + errorMessage)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Clean up voice input when ViewModel is cleared
+        voiceInputManager.cancelListening()
     }
 }
 

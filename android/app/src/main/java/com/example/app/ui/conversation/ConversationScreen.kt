@@ -30,10 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import caddypro.ui.conversation.voice.VoicePermissionHandler
+import caddypro.ui.conversation.voice.VoicePermissionRequest
 
 /**
  * Main conversation screen composable.
@@ -44,9 +47,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  * - Loading indicator during processing
  * - Empty state when no messages
  * - Menu for clearing conversation
+ * - Voice input with permission handling (Task 20)
  *
  * Spec reference: navcaddy-engine.md R1, R7
- * Plan reference: navcaddy-engine-plan.md Task 18
+ * Plan reference: navcaddy-engine-plan.md Task 18, Task 20
  */
 @Composable
 fun ConversationScreen(
@@ -54,10 +58,40 @@ fun ConversationScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val permissionHandler = remember { VoicePermissionHandler(context) }
+
+    var shouldRequestPermission by remember { mutableStateOf(false) }
+
+    // Handle permission request
+    VoicePermissionRequest(
+        permissionHandler = permissionHandler,
+        onPermissionResult = { isGranted ->
+            if (isGranted) {
+                // Permission granted, start voice input
+                viewModel.onAction(ConversationAction.StartVoiceInput)
+            }
+        },
+        shouldRequestPermission = shouldRequestPermission,
+        onRequestHandled = {
+            shouldRequestPermission = false
+        }
+    )
 
     ConversationContent(
         state = uiState,
-        onAction = viewModel::onAction,
+        onAction = { action ->
+            // Intercept voice input start to check permission
+            if (action is ConversationAction.StartVoiceInput) {
+                if (permissionHandler.hasRecordAudioPermission()) {
+                    viewModel.onAction(action)
+                } else {
+                    shouldRequestPermission = true
+                }
+            } else {
+                viewModel.onAction(action)
+            }
+        },
         modifier = modifier
     )
 }
