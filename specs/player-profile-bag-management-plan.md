@@ -20,7 +20,7 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
 
 | Blocker | Spec Reference | Impact |
 |---------|---------------|--------|
-| Material distance difference undefined | Q1 | Blocks Task 9-10 (inference logic) |
+| ~~Material distance difference undefined~~ | Q1 | ~~Blocks Task 9-10~~ RESOLVED: 5% |
 | Minimum sample size undefined | Q2 | Blocks Task 9-10 (inference thresholds) |
 | Wind/temperature normalization unclear | Q3 | Blocks Task 10 (advanced inference) |
 | Altitude profile support undefined | Q4 | Blocks Task 10 (optional enhancement) |
@@ -28,7 +28,7 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
 **Recommendation**: Resolve Q1-Q2 before starting Phase 3. Q3-Q4 can be deferred to post-MVP.
 
 **Proposed Defaults (if spec not updated)**:
-- Q1: Material difference = 5 meters OR 5% of estimated carry (whichever is greater)
+- Q1: Material difference = 5% of estimated carry
 - Q2: Minimum sample size = 10 shots per club
 - Q3: MVP skips normalization; track raw values with "conditions varied" disclaimer
 - Q4: Defer altitude support to future release
@@ -797,7 +797,7 @@ fun getAuditHistory(clubId: String): Flow<List<DistanceAuditEntry>>
 
 | Question | Spec Ref | Proposed Default | Status |
 |----------|----------|------------------|--------|
-| Q1: Material distance difference | R3 | 5 meters OR 5% | NEEDS DECISION |
+| Q1: Material distance difference | R3 | 5% of estimated carry | RESOLVED |
 | Q2: Minimum sample size | R3 | 10 shots/club | NEEDS DECISION |
 | Q3: Wind/temp normalization | R3 | Skip for MVP | DEFERRED |
 | Q4: Altitude profiles | R3 | Skip for MVP | DEFERRED |
