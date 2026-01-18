@@ -10,9 +10,10 @@ import Observation
  * 3. Session context management
  * 4. Navigation execution
  * 5. Response formatting with Bones persona
+ * 6. Voice input with speech recognition (Task 21)
  *
  * Spec reference: navcaddy-engine.md R1, R2, R3, R4, R7
- * Plan reference: navcaddy-engine-plan.md Task 19
+ * Plan reference: navcaddy-engine-plan.md Task 19, Task 21
  */
 @Observable
 @MainActor
@@ -28,6 +29,7 @@ final class ConversationViewModel {
     private let sessionContextManager: SessionContextManager
     private let navigationExecutor: NavigationExecutor
     private let responseFormatter: BonesResponseFormatter
+    private let voiceInputManager: VoiceInputManager
 
     // MARK: - Initialization
 
@@ -45,12 +47,16 @@ final class ConversationViewModel {
         self.sessionContextManager = dependencies.sessionContextManager
         self.navigationExecutor = dependencies.navigationExecutor
         self.responseFormatter = BonesResponseFormatter()
+        self.voiceInputManager = VoiceInputManager()
 
         // Add welcome message
         addAssistantMessage(
             "Hi! I'm Bones, your digital caddy. Ask me about club selection, " +
             "check your recovery, enter scores, or get coaching tips. How can I help?"
         )
+
+        // Start monitoring voice input state
+        startMonitoringVoiceInput()
     }
 
     // MARK: - Action Handling
@@ -249,15 +255,69 @@ final class ConversationViewModel {
         state.currentInput = text
     }
 
-    /// Start voice input (placeholder for Task 21).
+    // MARK: - Voice Input (Task 21)
+
+    /// Start monitoring voice input state changes.
+    private func startMonitoringVoiceInput() {
+        Task {
+            // Monitor voice input state and update UI accordingly
+            await observeVoiceInputState()
+        }
+    }
+
+    /// Observe voice input state changes.
+    private func observeVoiceInputState() async {
+        // Use withObservationTracking for reactive updates
+        withObservationTracking {
+            let _ = voiceInputManager.state
+        } onChange: {
+            Task { @MainActor in
+                self.handleVoiceInputStateChange()
+                await self.observeVoiceInputState()
+            }
+        }
+    }
+
+    /// Handle voice input state changes.
+    private func handleVoiceInputStateChange() {
+        let voiceState = voiceInputManager.state
+
+        switch voiceState {
+        case .idle:
+            state.isVoiceInputActive = false
+            state.currentInput = ""
+
+        case .listening, .processing:
+            state.isVoiceInputActive = true
+
+        case .partialResult(let transcription):
+            // Update input field with partial transcription
+            state.currentInput = transcription
+
+        case .result(let transcription):
+            // Final result - send message
+            state.isVoiceInputActive = false
+            if !transcription.isEmpty {
+                handleSendMessage(transcription)
+            }
+
+        case .error(let error):
+            // Handle voice input error
+            state.isVoiceInputActive = false
+            addErrorMessage(error.userMessage, isRecoverable: error.isRecoverable)
+        }
+    }
+
+    /// Start voice input.
     private func startVoiceInput() {
-        state.isVoiceInputActive = true
-        // TODO: Implement voice input in Task 21
+        Task {
+            await voiceInputManager.startListening()
+        }
     }
 
     /// Stop voice input.
     private func stopVoiceInput() {
-        state.isVoiceInputActive = false
+        voiceInputManager.stopListening()
     }
 
     /// Handle voice input completion.
