@@ -132,4 +132,82 @@ extension NavCaddyDestination {
             return "Help"
         }
     }
+
+    /// Creates a NavCaddyDestination from a RoutingTarget.
+    ///
+    /// Maps the routing target's module, screen, and parameters to the appropriate
+    /// destination case.
+    ///
+    /// - Parameter target: The routing target to convert
+    /// - Returns: The corresponding NavCaddyDestination
+    static func from(routingTarget target: RoutingTarget) -> NavCaddyDestination {
+        let params = target.parameters
+
+        switch target.screen {
+        case "club_adjustment":
+            return .clubAdjustment(club: params["club"] ?? "")
+
+        case "shot_recommendation":
+            let yardage = params["yardage"].flatMap { Int($0) }
+            return .shotRecommendation(
+                yardage: yardage,
+                club: params["club"],
+                lie: params["lie"],
+                wind: params["wind"]
+            )
+
+        case "weather_check":
+            return .weatherCheck(location: params["location"])
+
+        case "course_info":
+            return .courseInfo(courseId: params["course_id"] ?? "")
+
+        case "drill_screen":
+            return .drillScreen(
+                drillType: params["drill_type"],
+                focusClub: params["focus_club"]
+            )
+
+        case "stats_lookup":
+            return .statsLookup(
+                statType: params["stat_type"],
+                dateRange: params["date_range"]
+            )
+
+        case "pattern_query":
+            return .patternQuery(
+                club: params["club"],
+                pressureContext: params["pressure_context"]
+            )
+
+        case "recovery_overview":
+            return .recoveryOverview
+
+        case "recovery_detail":
+            return .recoveryDetail(date: params["date"] ?? "")
+
+        case "round_start":
+            return .roundStart(courseId: params["course_id"])
+
+        case "score_entry":
+            let hole = params["hole"].flatMap { Int($0) } ?? 1
+            return .scoreEntry(hole: hole)
+
+        case "round_end":
+            return .roundEnd
+
+        case "equipment_info":
+            return .equipmentInfo(clubToEdit: params["club_to_edit"])
+
+        case "settings":
+            return .settings(section: params["section"])
+
+        case "help":
+            return .help
+
+        default:
+            // Fallback to help if screen is unknown
+            return .help
+        }
+    }
 }

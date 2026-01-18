@@ -66,6 +66,11 @@ struct NavigationExecutor {
         return .navigated(destination: destination, intent: intent)
     }
 
+    /// Navigates to a destination directly
+    func navigate(to destination: NavCaddyDestination) {
+        coordinator.navigate(to: destination)
+    }
+
     /// Navigates back
     func navigateBack() {
         coordinator.navigateBack()
