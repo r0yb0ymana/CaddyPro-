@@ -15,7 +15,7 @@ enum ClassificationResult {
 
     /// Low confidence: request clarification
     /// confidence < 0.50
-    case clarify(suggestions: [IntentType], message: String)
+    case clarify(response: ClarificationResponse)
 
     /// Classification failed with error
     case error(Error)

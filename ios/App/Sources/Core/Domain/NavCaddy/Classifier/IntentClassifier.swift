@@ -12,10 +12,16 @@ import Foundation
 actor IntentClassifier {
     private let llmClient: LLMClient
     private let normalizer: InputNormalizer
+    private let clarificationHandler: ClarificationHandler
 
-    init(llmClient: LLMClient, normalizer: InputNormalizer = InputNormalizer()) {
+    init(
+        llmClient: LLMClient,
+        normalizer: InputNormalizer = InputNormalizer(),
+        clarificationHandler: ClarificationHandler = ClarificationHandler()
+    ) {
         self.llmClient = llmClient
         self.normalizer = normalizer
+        self.clarificationHandler = clarificationHandler
     }
 
     /// Classifies user input and determines the appropriate action.
@@ -31,10 +37,12 @@ actor IntentClassifier {
 
         // Step 2: Language detection (basic check)
         if !normalizer.isEnglish(normalizedInput) {
-            return .clarify(
-                suggestions: getDefaultSuggestions(context: context),
-                message: "I'm sorry, I only understand English at the moment."
+            let clarificationResponse = clarificationHandler.generateClarification(
+                for: input,
+                parsedIntent: nil,
+                context: context
             )
+            return .clarify(response: clarificationResponse)
         }
 
         do {
@@ -44,10 +52,12 @@ actor IntentClassifier {
             // Step 4: Parse the JSON response
             guard let parsedIntent = try? parseResponse(llmResponse.rawResponse) else {
                 // If parsing fails, return clarification
-                return .clarify(
-                    suggestions: getDefaultSuggestions(context: context),
-                    message: "I'm not quite sure what you mean. Could you rephrase that?"
+                let clarificationResponse = clarificationHandler.generateClarification(
+                    for: input,
+                    parsedIntent: nil,
+                    context: context
                 )
+                return .clarify(response: clarificationResponse)
             }
 
             // Step 5: Validate entities against schema
@@ -95,11 +105,12 @@ actor IntentClassifier {
 
             case .clarify:
                 // Low confidence: request clarification
-                let suggestions = getSimilarIntents(to: parsedIntent.intentType, maxCount: 3)
-                return .clarify(
-                    suggestions: suggestions,
-                    message: buildClarificationMessage(suggestions: suggestions)
+                let clarificationResponse = clarificationHandler.generateClarification(
+                    for: input,
+                    parsedIntent: parsedIntent,
+                    context: context
                 )
+                return .clarify(response: clarificationResponse)
             }
 
         } catch let error as LLMError {
@@ -176,14 +187,6 @@ actor IntentClassifier {
         return message
     }
 
-    private func buildClarificationMessage(suggestions: [IntentType]) -> String {
-        if suggestions.isEmpty {
-            return "I'm not sure what you mean. Could you rephrase that?"
-        }
-
-        return "I'm not quite sure. Did you want to:"
-    }
-
     private func buildMissingEntitiesMessage(
         intentType: IntentType,
         missingEntities: [EntityType]
@@ -213,32 +216,6 @@ actor IntentClassifier {
             let allButLast = entityNames.dropLast().joined(separator: ", ")
             let last = entityNames.last!
             return "I need the \(allButLast) and \(last)."
-        }
-    }
-
-    // MARK: - Intent Suggestions
-
-    private func getSimilarIntents(to intentType: IntentType, maxCount: Int) -> [IntentType] {
-        // For now, return intents from the same module
-        let schema = IntentRegistry.getSchema(for: intentType)
-        guard let module = schema.defaultRoutingTarget?.module else {
-            return getDefaultSuggestions(context: nil)
-        }
-
-        let similarIntents = IntentRegistry.getIntents(for: module)
-            .filter { $0.intentType != intentType }
-            .prefix(maxCount)
-            .map { $0.intentType }
-
-        return Array(similarIntents)
-    }
-
-    private func getDefaultSuggestions(context: SessionContext?) -> [IntentType] {
-        // Return common intents based on context
-        if context?.currentRound != nil {
-            return [.shotRecommendation, .scoreEntry, .patternQuery]
-        } else {
-            return [.roundStart, .recoveryCheck, .statsLookup]
         }
     }
 }

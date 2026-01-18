@@ -1,5 +1,6 @@
 package caddypro.domain.navcaddy.classifier
 
+import caddypro.domain.navcaddy.clarification.ClarificationHandler
 import caddypro.domain.navcaddy.intent.IntentRegistry
 import caddypro.domain.navcaddy.intent.ValidationResult
 import caddypro.domain.navcaddy.llm.LLMClient
@@ -19,14 +20,16 @@ import caddypro.domain.navcaddy.normalizer.InputNormalizer
  * 5. Determine action based on confidence thresholds
  * 6. Return appropriate ClassificationResult
  *
- * Spec reference: navcaddy-engine.md R2, navcaddy-engine-plan.md Task 6, Task 7
+ * Spec reference: navcaddy-engine.md R2, navcaddy-engine-plan.md Task 6, Task 7, Task 8
  *
  * @property llmClient LLM client for classification
  * @property normalizer Input normalizer for preprocessing
+ * @property clarificationHandler Handler for generating clarification responses
  */
 class IntentClassifier(
     private val llmClient: LLMClient,
-    private val normalizer: InputNormalizer = InputNormalizer()
+    private val normalizer: InputNormalizer = InputNormalizer(),
+    private val clarificationHandler: ClarificationHandler = ClarificationHandler()
 ) {
     /**
      * Classify user input and determine routing action.
@@ -110,10 +113,14 @@ class IntentClassifier(
                 }
 
                 ThresholdAction.CLARIFY -> {
-                    val suggestions = findSimilarIntents(normalizedInput, parsedIntent)
+                    // Use ClarificationHandler for generating suggestions and message
+                    val clarificationResponse = clarificationHandler.generateClarification(
+                        input = normalizedInput,
+                        parsedIntent = parsedIntent
+                    )
                     ClassificationResult.Clarify(
-                        suggestions = suggestions,
-                        message = buildClarificationMessage(normalizedInput),
+                        suggestions = clarificationResponse.suggestions.map { it.intentType },
+                        message = clarificationResponse.message,
                         originalInput = input
                     )
                 }
@@ -161,41 +168,5 @@ class IntentClassifier(
                 append(" (${entityDetails.joinToString(", ")})")
             }
         }
-    }
-
-    /**
-     * Build clarification message for low-confidence intents.
-     */
-    private fun buildClarificationMessage(input: String): String {
-        return "I'm not quite sure what you're asking. Did you want to:"
-    }
-
-    /**
-     * Find similar intents based on user input and parsed intent.
-     * Returns up to 3 suggestions.
-     *
-     * @param input Original user input
-     * @param parsedIntent The low-confidence parsed intent
-     * @return List of suggested intent types (max 3)
-     */
-    private fun findSimilarIntents(input: String, parsedIntent: ParsedIntent): List<IntentType> {
-        // Start with the classified intent (even though confidence is low)
-        val suggestions = mutableListOf(parsedIntent.intentType)
-
-        // Add common fallback intents
-        val commonIntents = listOf(
-            IntentType.SHOT_RECOMMENDATION,
-            IntentType.CLUB_ADJUSTMENT,
-            IntentType.HELP_REQUEST
-        )
-
-        // Add common intents that aren't already in the list
-        commonIntents.forEach { intent ->
-            if (intent !in suggestions && suggestions.size < 3) {
-                suggestions.add(intent)
-            }
-        }
-
-        return suggestions.take(3)
     }
 }

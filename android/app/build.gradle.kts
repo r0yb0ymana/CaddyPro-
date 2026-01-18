@@ -21,11 +21,11 @@ android {
         applicationId = "caddypro"
         minSdk = 26
         targetSdk = 35
-        
+
         val versionJsonFile = rootProject.file("version.json")
         val versionJson = groovy.json.JsonSlurper().parseText(versionJsonFile.readText()) as Map<String, Any>
         val versionString = versionJson["version"] as String
-        
+
         versionName = versionString
         versionCode = 1
 
@@ -34,6 +34,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Room schema export for version control
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
     }
 
     buildTypes {
@@ -41,10 +46,10 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            
+
             buildConfigField("String", "API_BASE_URL", "\"caddypro.com\"")
         }
-        
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -52,14 +57,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            
+
             buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
-            
+
             // Signing config for release builds (configured via CI)
             signingConfig = signingConfigs.findByName("release")
         }
     }
-    
+
     flavorDimensions += "environment"
     productFlavors {
         create("dev") {
@@ -124,7 +129,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    
+
     // Navigation
     implementation(libs.androidx.navigation.compose)
 
