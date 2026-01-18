@@ -204,10 +204,17 @@ This plan breaks down the Player Profile & Bag Management feature into 22 sequen
    - Audit entry recording
 
 #### Verification:
-- [ ] SwiftData models persist correctly
-- [ ] Queries return expected results
-- [ ] Data survives app termination
-- [ ] Unit tests validate repository
+- [x] SwiftData models persist correctly
+- [x] Queries return expected results
+- [x] Data survives app termination
+- [x] Unit tests validate repository (27 tests in BagProfileRepositoryTests.swift)
+
+**Status**: ✅ COMPLETE
+
+**Notes**:
+- SwiftData @Relationship with cascade delete for BagProfile -> BagClub
+- @MainActor annotation for repository (ModelContext requires main thread)
+- Domain mappers handle nested MissBias reconstruction
 
 ---
 

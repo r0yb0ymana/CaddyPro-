@@ -16,7 +16,10 @@ enum NavCaddyDataContainer {
             ShotRecord.self,
             MissPatternRecord.self,
             SessionRecord.self,
-            ConversationTurnRecord.self
+            ConversationTurnRecord.self,
+            BagProfileRecord.self,
+            BagClubRecord.self,
+            DistanceAuditRecord.self
         ])
 
         let configuration = ModelConfiguration(
