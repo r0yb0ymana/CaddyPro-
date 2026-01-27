@@ -5,7 +5,7 @@ import Foundation
 /// Builds prompts for intent classification, includes system prompt with
 /// intent list and entity schemas, and parses JSON responses.
 ///
-/// Spec R2: Intent classification using Gemini 3 Flash.
+/// Spec R2: Intent classification using Gemini Flash.
 final class GeminiClient: LLMClient {
     private let apiKey: String
     private let model: String
@@ -13,18 +13,133 @@ final class GeminiClient: LLMClient {
 
     init(
         apiKey: String = "",
-        model: String = "gemini-3-flash",
-        timeoutSeconds: TimeInterval = 3.0
+        model: String = "gemini-2.0-flash-lite",
+        timeoutSeconds: TimeInterval = 10.0
     ) {
         self.apiKey = apiKey
         self.model = model
         self.timeoutSeconds = timeoutSeconds
     }
 
+    // MARK: - Direct Chat
+
+    /// Sends a conversational message to Gemini as Bones the caddy.
+    /// Returns a plain text response (not JSON classification).
+    func chat(message: String, history: [(role: String, content: String)]) async throws -> String {
+        guard !apiKey.isEmpty, apiKey != "PLACEHOLDER_API_KEY" else {
+            throw LLMError.authenticationError
+        }
+
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
+        guard let url = URL(string: urlString) else {
+            throw LLMError.unknown("Invalid API URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = timeoutSeconds
+
+        let systemPrompt = """
+        You are Bones, a friendly and knowledgeable digital golf caddy in the CaddyPro+ app. \
+        You speak in a warm, conversational tone — like a real caddy walking alongside the golfer.
+
+        You help with:
+        - Club selection and shot recommendations
+        - Reading course conditions (wind, lie, elevation)
+        - Strategy and course management
+        - Swing tips and practice drills
+        - Score tracking advice
+        - Equipment recommendations
+        - General golf knowledge
+
+        Keep responses concise (2-4 sentences) and practical. Use golf terminology naturally. \
+        Don't say "As an AI" — you're Bones, a caddy. Be confident but not pushy with advice. \
+        If someone mentions pain or injury, suggest they consult a medical professional.
+        """
+
+        var contents: [[String: Any]] = []
+        for turn in history.suffix(10) {
+            contents.append([
+                "role": turn.role,
+                "parts": [["text": turn.content]]
+            ])
+        }
+        contents.append([
+            "role": "user",
+            "parts": [["text": message]]
+        ])
+
+        let body: [String: Any] = [
+            "contents": contents,
+            "systemInstruction": [
+                "parts": [["text": systemPrompt]]
+            ],
+            "generationConfig": [
+                "temperature": 0.7,
+                "maxOutputTokens": 512
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        // Retry up to 2 times on rate limit (429)
+        var lastError: Error?
+        for attempt in 0..<3 {
+            if attempt > 0 {
+                // Wait before retrying (3s, then 6s)
+                try await Task.sleep(nanoseconds: UInt64(attempt) * 3_000_000_000)
+            }
+
+            let (data, response): (Data, URLResponse)
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch let error as URLError where error.code == .timedOut {
+                throw LLMError.timeout
+            } catch {
+                throw LLMError.networkError(error.localizedDescription)
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw LLMError.networkError("Invalid response")
+            }
+
+            switch httpResponse.statusCode {
+            case 200:
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let candidates = json["candidates"] as? [[String: Any]],
+                      let firstCandidate = candidates.first,
+                      let content = firstCandidate["content"] as? [String: Any],
+                      let parts = content["parts"] as? [[String: Any]],
+                      let firstPart = parts.first,
+                      let text = firstPart["text"] as? String else {
+                    throw LLMError.parseError("Failed to extract text from Gemini response")
+                }
+                return text
+            case 401, 403:
+                throw LLMError.authenticationError
+            case 429:
+                lastError = LLMError.rateLimitExceeded
+                continue // retry
+            default:
+                let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+                throw LLMError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
+            }
+        }
+
+        throw lastError ?? LLMError.rateLimitExceeded
+    }
+
+    // MARK: - Intent Classification
+
     func classify(input: String, context: SessionContext?) async throws -> LLMResponse {
         // Validate input
         guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw LLMError.invalidInput("Input cannot be empty")
+        }
+
+        guard !apiKey.isEmpty, apiKey != "PLACEHOLDER_API_KEY" else {
+            throw LLMError.authenticationError
         }
 
         let startTime = Date()
@@ -33,7 +148,7 @@ final class GeminiClient: LLMClient {
         let systemPrompt = buildSystemPrompt()
         let userPrompt = buildUserPrompt(input: input, context: context)
 
-        // Make API request (placeholder - actual implementation would call Gemini API)
+        // Make API request
         let response = try await makeAPIRequest(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt
@@ -134,15 +249,73 @@ final class GeminiClient: LLMClient {
     // MARK: - API Request
 
     private func makeAPIRequest(systemPrompt: String, userPrompt: String) async throws -> String {
-        // TODO: Implement actual Gemini API call
-        // For now, this is a placeholder that will be replaced with actual API integration
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
 
-        // Simulate network delay
-        try await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
+        guard let url = URL(string: urlString) else {
+            throw LLMError.unknown("Invalid API URL")
+        }
 
-        // Return a mock response for testing
-        // In production, this would make an actual HTTP request to Gemini API
-        throw LLMError.unknown("Gemini API integration not yet implemented")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = timeoutSeconds
+
+        let body: [String: Any] = [
+            "contents": [
+                [
+                    "role": "user",
+                    "parts": [["text": userPrompt]]
+                ]
+            ],
+            "systemInstruction": [
+                "parts": [["text": systemPrompt]]
+            ],
+            "generationConfig": [
+                "responseMimeType": "application/json",
+                "temperature": 0.1,
+                "maxOutputTokens": 256
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let error as URLError where error.code == .timedOut {
+            throw LLMError.timeout
+        } catch {
+            throw LLMError.networkError(error.localizedDescription)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.networkError("Invalid response")
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            break
+        case 401, 403:
+            throw LLMError.authenticationError
+        case 429:
+            throw LLMError.rateLimitExceeded
+        default:
+            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw LLMError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
+        }
+
+        // Parse the Gemini response to extract the text content
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let candidates = json["candidates"] as? [[String: Any]],
+              let firstCandidate = candidates.first,
+              let content = firstCandidate["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]],
+              let firstPart = parts.first,
+              let text = firstPart["text"] as? String else {
+            throw LLMError.parseError("Failed to extract text from Gemini response")
+        }
+
+        return text
     }
 }
 

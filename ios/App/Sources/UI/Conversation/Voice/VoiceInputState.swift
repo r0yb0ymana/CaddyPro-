@@ -35,7 +35,7 @@ enum VoiceInputState: Equatable {
 // MARK: - Voice Input Error
 
 /// Represents voice input errors with user-friendly messages.
-enum VoiceInputError: Equatable {
+enum VoiceInputError: Error, Equatable {
     /// Speech recognition is not available on this device.
     case notAvailable
 

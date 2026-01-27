@@ -29,6 +29,10 @@
 		<true/>
 	</dict>
 
+	<!-- Launch Screen -->
+	<key>UILaunchScreen</key>
+	<dict/>
+
 	<!-- Required Device Capabilities -->
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>

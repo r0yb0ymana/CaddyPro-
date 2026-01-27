@@ -36,7 +36,7 @@ struct Club: Codable, Hashable, Identifiable {
         type: ClubType,
         loft: Double? = nil,
         distance: Int? = nil,
-        estimatedCarry: Int,
+        estimatedCarry: Int = 0,
         inferredCarry: Int? = nil,
         inferredConfidence: Double? = nil,
         missBias: MissBias? = nil,
@@ -44,7 +44,7 @@ struct Club: Codable, Hashable, Identifiable {
         flex: String? = nil,
         notes: String? = nil
     ) {
-        precondition(estimatedCarry > 0, "Estimated carry must be positive")
+        precondition(estimatedCarry >= 0, "Estimated carry must be non-negative")
         if let conf = inferredConfidence {
             precondition(
                 (0.0...1.0).contains(conf),

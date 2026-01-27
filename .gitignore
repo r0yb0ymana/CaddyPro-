@@ -261,6 +261,7 @@ pnpm-debug.log*
 # ===================
 # Secrets (NEVER commit these)
 # ===================
+**/Secrets.swift
 .env
 .env.local
 .env.*.local

@@ -182,17 +182,6 @@ struct LocalIntentSuggestions {
     }
 }
 
-// MARK: - Intent Suggestion Model
-
-/// Represents a suggested intent with display information.
-struct IntentSuggestion: Identifiable, Equatable {
-    let intentType: IntentType
-    let label: String
-    let description: String
-
-    var id: String { intentType.rawValue }
-}
-
 // MARK: - Context-Aware Suggestions
 
 extension LocalIntentSuggestions {

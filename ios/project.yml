@@ -22,14 +22,17 @@ targets:
         product: App
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: caddypro
+        PRODUCT_BUNDLE_IDENTIFIER: com.leroyniania.caddypro
         INFOPLIST_FILE: Info.plist
         marketingVersion: 1.0.0
         currentProjectVersion: 1
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 2RPDGS5ZUJ
       configs:
-        debug:
+        Debug:
           DEBUG_INFORMATION_FORMAT: dwarf
-        release:
+        Release:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 
 schemes:
@@ -38,14 +41,12 @@ schemes:
       targets:
         App: all
     run:
-      config: debug
+      config: Debug
     test:
-      config: debug
-      targets:
-        - name: CaddyPro+Tests
+      config: Debug
     profile:
-      config: release
+      config: Release
     analyze:
-      config: debug
+      config: Debug
     archive:
-      config: release
+      config: Release

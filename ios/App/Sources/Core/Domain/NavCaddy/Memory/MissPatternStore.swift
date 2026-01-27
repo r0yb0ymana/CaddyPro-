@@ -5,8 +5,9 @@ import Foundation
 /// Spec R5: Miss Pattern Store tracks shot history and aggregates patterns
 /// with time-based decay, filtering by club and pressure context.
 ///
-/// This actor provides thread-safe access to miss pattern operations.
-actor MissPatternStore {
+/// This class provides thread-safe access to miss pattern operations.
+@MainActor
+final class MissPatternStore {
     private let recorder: ShotRecorder
     private let aggregator: MissPatternAggregator
     private let repository: NavCaddyRepository
@@ -22,7 +23,7 @@ actor MissPatternStore {
     }
 
     /// Convenience initializer with repository dependency.
-    init(repository: NavCaddyRepository) {
+    convenience init(repository: NavCaddyRepository) {
         let recorder = ShotRecorder(repository: repository)
         let aggregator = MissPatternAggregator(repository: repository)
 
@@ -53,6 +54,7 @@ actor MissPatternStore {
         clubId: String,
         clubName: String,
         clubType: ClubType,
+        estimatedCarry: Int,
         direction: MissDirection,
         lie: Lie,
         pressure: PressureContext = PressureContext(),
@@ -62,7 +64,8 @@ actor MissPatternStore {
         let club = Club(
             id: clubId,
             name: clubName,
-            type: clubType
+            type: clubType,
+            estimatedCarry: estimatedCarry
         )
 
         let shot = Shot(

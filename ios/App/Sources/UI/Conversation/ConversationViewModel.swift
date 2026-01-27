@@ -27,6 +27,7 @@ final class ConversationViewModel {
 
     // MARK: - Dependencies
 
+    private let chatClient: GeminiClient
     private let intentClassifier: IntentClassifier
     private let routingOrchestrator: RoutingOrchestrator
     private let sessionContextManager: SessionContextManager
@@ -45,17 +46,18 @@ final class ConversationViewModel {
     // MARK: - Initialization
 
     init(dependencies: DependencyContainer = .shared) {
-        // Create classifier with Gemini client
-        let llmClient = GeminiClient(apiKey: "PLACEHOLDER_API_KEY") // TODO: Move to secure storage
-        let classifier = IntentClassifier(llmClient: llmClient)
+        // Create Gemini client for both chat and classification
+        let geminiClient = GeminiClient(apiKey: Secrets.geminiAPIKey)
+        let classifier = IntentClassifier(llmClient: geminiClient)
 
         // Create prerequisite checker
-        let prerequisiteChecker = PrerequisiteChecker()
+        let prerequisiteChecker = DefaultPrerequisiteChecker()
 
         // Generate session ID
         self.sessionId = UUID().uuidString
 
         // Assign dependencies
+        self.chatClient = geminiClient
         self.intentClassifier = classifier
         self.routingOrchestrator = RoutingOrchestrator(prerequisiteChecker: prerequisiteChecker)
         self.sessionContextManager = dependencies.sessionContextManager
@@ -177,81 +179,51 @@ final class ConversationViewModel {
 
     // MARK: - Online Pipeline
 
-    /// Handle input when online using LLM classifier.
+    /// Handle input when online using direct Gemini chat.
     private func handleOnlineInput(_ input: String) async {
-        // Get session context
-        let context = await sessionContextManager.getCurrentContext()
-
-        // Classify intent (with latency tracking)
-        let classificationStartTime = Date()
-        let classificationResult = await intentClassifier.classify(input: input, context: context)
-        let classificationLatency = Int(Date().timeIntervalSince(classificationStartTime) * 1000)
-
-        // Track classification latency
-        analytics.trackLatency(
-            operation: "intent_classification",
-            latencyMs: classificationLatency,
-            sessionId: sessionId
-        )
-
-        // Handle classification result
-        switch classificationResult {
-        case .route(let intent, let target):
-            // Track classified intent
-            analytics.log(.intentClassified(IntentClassifiedEvent(
-                intent: intent.intentType.rawValue,
-                confidence: intent.confidence,
-                latencyMs: classificationLatency,
-                sessionId: sessionId
-            )))
-
-            await handleRouteClassification(intent: intent, target: target)
-
-        case .confirm(let intent, let message):
-            // Track classified intent (confirmation required)
-            analytics.log(.intentClassified(IntentClassifiedEvent(
-                intent: intent.intentType.rawValue,
-                confidence: intent.confidence,
-                latencyMs: classificationLatency,
-                sessionId: sessionId
-            )))
-
-            handleConfirmClassification(intent: intent, message: message)
-
-        case .clarify(let response):
-            // Track clarification (low confidence)
-            analytics.log(.intentClassified(IntentClassifiedEvent(
-                intent: "CLARIFY",
-                confidence: 0.0,
-                latencyMs: classificationLatency,
-                sessionId: sessionId
-            )))
-
-            handleClarifyClassification(response: response)
-
-        case .error(let error):
-            // Check if we should fall back to offline mode
-            let networkStatus = networkMonitor.status
-            if networkStatus.isDefinitelyOffline {
-                // Network went down during processing - fall back to offline
-                await handleOfflineInput(input)
-            } else {
-                // Handle error with error handler (Task 23)
-                await handleClassificationError(error)
+        do {
+            // Build conversation history from existing messages
+            var history: [(role: String, content: String)] = []
+            for message in state.messages {
+                switch message {
+                case .user(let msg):
+                    history.append((role: "user", content: msg.text))
+                case .assistant(let msg):
+                    history.append((role: "model", content: msg.text))
+                default:
+                    break
+                }
             }
-        }
 
-        // Update session context with this turn
-        let lastAssistantMessage = state.messages.last(where: {
-            if case .assistant = $0 { return true }
-            return false
-        })
+            // Call Gemini directly as Bones
+            let chatStartTime = Date()
+            let response = try await chatClient.chat(message: input, history: history)
+            let latencyMs = Int(Date().timeIntervalSince(chatStartTime) * 1000)
 
-        if case .assistant(let msg) = lastAssistantMessage {
+            analytics.trackLatency(
+                operation: "chat_response",
+                latencyMs: latencyMs,
+                sessionId: sessionId
+            )
+
+            // Add the response
+            addAssistantMessage(response)
+
+            // Update session context
             await sessionContextManager.addConversationTurn(
                 userInput: input,
-                assistantResponse: msg.text
+                assistantResponse: response
             )
+
+        } catch let error as LLMError {
+            let networkStatus = networkMonitor.status
+            if networkStatus.isDefinitelyOffline {
+                await handleOfflineInput(input)
+            } else {
+                await handleClassificationError(error)
+            }
+        } catch {
+            addErrorMessage("Something went wrong. Try again.", isRecoverable: true)
         }
     }
 
@@ -283,9 +255,7 @@ final class ConversationViewModel {
                 intent: ParsedIntent(
                     intentType: result.intentType!,
                     confidence: 1.0,
-                    entities: ExtractedEntities(),
-                    rawInput: input,
-                    normalizedInput: input
+                    entities: ExtractedEntities()
                 ),
                 target: target
             ))

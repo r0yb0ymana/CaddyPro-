@@ -42,14 +42,19 @@ final class VoiceInputManager {
     /// Current recognition task.
     private var recognitionTask: SFSpeechRecognitionTask?
 
+    /// Delegate for monitoring speech recognizer availability (must be retained).
+    private var speechRecognizerDelegate: SpeechRecognizerDelegate?
+
     // MARK: - Initialization
 
     init() {
         // Create speech recognizer for user's locale
         self.speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
 
-        // Monitor availability changes
-        self.speechRecognizer?.delegate = SpeechRecognizerDelegate(manager: self)
+        // Monitor availability changes (retain delegate)
+        let delegate = SpeechRecognizerDelegate(manager: self)
+        self.speechRecognizerDelegate = delegate
+        self.speechRecognizer?.delegate = delegate
     }
 
     // MARK: - Public Interface

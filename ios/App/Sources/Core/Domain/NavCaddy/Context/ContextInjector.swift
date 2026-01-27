@@ -54,7 +54,7 @@ final class ContextInjector {
                 prompt += "Miss: \(formatMissDirection(missDirection))\n"
             }
 
-            if shot.pressureContext.isUnderPressure {
+            if shot.pressureContext.hasPressure {
                 prompt += "Pressure: Yes\n"
             }
 
@@ -89,18 +89,18 @@ final class ContextInjector {
         switch direction {
         case .straight:
             return "straight"
-        case .pushRight:
-            return "push right"
-        case .pullLeft:
-            return "pull left"
-        case .sliceRight:
-            return "slice right"
-        case .hookLeft:
-            return "hook left"
-        case .short:
-            return "short"
-        case .long:
-            return "long"
+        case .push:
+            return "push"
+        case .pull:
+            return "pull"
+        case .slice:
+            return "slice"
+        case .hook:
+            return "hook"
+        case .fat:
+            return "fat"
+        case .thin:
+            return "thin"
         }
     }
 }
