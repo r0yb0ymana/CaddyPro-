@@ -23,10 +23,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -36,8 +39,10 @@ import caddypro.domain.caddy.models.Location
 import caddypro.domain.caddy.models.WeatherData
 import caddypro.domain.navcaddy.context.RoundState
 import caddypro.ui.caddy.components.ForecasterHud
+import caddypro.ui.caddy.components.HapticFeedbackManager
 import caddypro.ui.caddy.components.PinSeekerMap
 import caddypro.ui.caddy.components.ReadinessHud
+import caddypro.ui.caddy.components.ShotConfirmationToast
 import caddypro.ui.caddy.components.ShotLogger
 import caddypro.ui.theme.CaddyProTheme
 import com.example.app.ui.components.ErrorView
@@ -53,6 +58,8 @@ import com.example.app.ui.components.LoadingView
  * - PinSeeker map with hole strategy and hazard awareness
  * - Floating action button for shot logger
  * - Modal bottom sheet for shot logging
+ * - Haptic feedback for shot confirmation (R6, A4)
+ * - Shot confirmation toast (R6, A4)
  *
  * Supports:
  * - Loading states and error handling
@@ -61,7 +68,7 @@ import com.example.app.ui.components.LoadingView
  * - Material 3 design with outdoor visibility optimization
  *
  * Spec reference: live-caddy-mode.md R1-R7
- * Plan reference: live-caddy-mode-plan.md Task 18
+ * Plan reference: live-caddy-mode-plan.md Task 18, Task 22
  * Acceptance criteria: A1-A4 (all)
  *
  * @param viewModel ViewModel managing Live Caddy state
@@ -79,6 +86,19 @@ fun LiveCaddyScreen(
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
+
+    // Create haptic feedback manager (respects settings)
+    val view = LocalView.current
+    val hapticFeedback = remember(state.settings.hapticFeedback) {
+        HapticFeedbackManager(view, enabled = state.settings.hapticFeedback)
+    }
+
+    // Trigger haptic feedback when shot is confirmed (A4)
+    LaunchedEffect(state.lastShotConfirmed) {
+        if (state.lastShotConfirmed) {
+            hapticFeedback.success()
+        }
+    }
 
     // Apply window flags for low distraction mode (R7: Safety and Distraction Controls)
     if (state.settings.autoLockPrevention) {
@@ -141,6 +161,21 @@ fun LiveCaddyScreen(
                     )
                 }
             }
+
+            // Shot confirmation toast (A4: haptic confirmation)
+            // Positioned at bottom of screen
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                ShotConfirmationToast(
+                    visible = state.lastShotConfirmed,
+                    shotDetails = state.lastShotDetails,
+                    onDismiss = { viewModel.onAction(LiveCaddyAction.DismissShotConfirmation) }
+                )
+            }
         }
     }
 
@@ -159,6 +194,7 @@ fun LiveCaddyScreen(
                 onShotLogged = { result ->
                     viewModel.onAction(LiveCaddyAction.LogShot(result))
                 },
+                hapticFeedback = hapticFeedback,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
         }

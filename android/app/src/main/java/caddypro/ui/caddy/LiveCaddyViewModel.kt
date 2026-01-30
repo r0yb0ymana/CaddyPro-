@@ -78,6 +78,7 @@ class LiveCaddyViewModel @Inject constructor(
             is LiveCaddyAction.SelectClub -> selectClub(action.club)
             is LiveCaddyAction.LogShot -> logShotAction(action.result)
             LiveCaddyAction.DismissShotLogger -> dismissShotLogger()
+            LiveCaddyAction.DismissShotConfirmation -> dismissShotConfirmation()
             is LiveCaddyAction.AdvanceHole -> advanceHole(action.holeNumber)
             LiveCaddyAction.EndRound -> endRoundAction()
             is LiveCaddyAction.ToggleWeatherHud -> toggleWeatherHud(action.expanded)
@@ -252,20 +253,22 @@ class LiveCaddyViewModel @Inject constructor(
 
             logResult.fold(
                 onSuccess = {
+                    // Format shot details for confirmation toast
+                    val missDirection = result.missDirection?.let { " (${it.name})" } ?: ""
+                    val shotDetails = "${club.name} → ${result.lie.name}$missDirection"
+
                     _uiState.update {
                         it.copy(
                             lastShotConfirmed = true,
+                            lastShotDetails = shotDetails,
                             isShotLoggerVisible = false,
                             selectedClub = null,
                             error = null
                         )
                     }
 
-                    // Reset confirmation state after brief delay
-                    viewModelScope.launch {
-                        kotlinx.coroutines.delay(1000)
-                        _uiState.update { it.copy(lastShotConfirmed = false) }
-                    }
+                    // Note: Haptic feedback is triggered by the UI layer
+                    // when it observes lastShotConfirmed = true
                 },
                 onFailure = { error ->
                     _uiState.update {
@@ -294,6 +297,23 @@ class LiveCaddyViewModel @Inject constructor(
             it.copy(
                 isShotLoggerVisible = false,
                 selectedClub = null
+            )
+        }
+    }
+
+    /**
+     * Dismiss the shot confirmation toast.
+     *
+     * Resets the confirmation state after the toast is dismissed.
+     *
+     * Spec reference: R6 (Real-Time Shot Logger)
+     * Acceptance criteria: A4 (haptic confirmation)
+     */
+    private fun dismissShotConfirmation() {
+        _uiState.update {
+            it.copy(
+                lastShotConfirmed = false,
+                lastShotDetails = ""
             )
         }
     }

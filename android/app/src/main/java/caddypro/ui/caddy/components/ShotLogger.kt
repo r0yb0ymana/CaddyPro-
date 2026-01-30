@@ -1,6 +1,5 @@
 package caddypro.ui.caddy.components
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,17 +38,18 @@ import com.example.app.domain.navcaddy.models.ClubType
  * - Large touch targets (48dp+ for clubs, 64dp for results)
  * - Material 3 styling with high contrast colors
  * - Progressive disclosure (result only shown after club selection)
- * - Haptic feedback on shot save
+ * - Haptic feedback on shot save (managed by caller via HapticFeedbackManager)
  * - Color-coded results (green=good, red=bad)
  *
  * Spec reference: live-caddy-mode.md R6 (Real-Time Shot Logger)
- * Plan reference: live-caddy-mode-plan.md Task 17
+ * Plan reference: live-caddy-mode-plan.md Task 17, Task 22
  * Acceptance criteria: A4 (Shot logger speed and persistence)
  *
  * @param clubs List of clubs available for selection
  * @param selectedClub Currently selected club (null if no selection)
  * @param onClubSelected Callback when a club is selected
  * @param onShotLogged Callback when shot is logged with result
+ * @param hapticFeedback HapticFeedbackManager for tactile feedback
  * @param modifier Modifier for the container
  */
 @Composable
@@ -58,20 +58,11 @@ fun ShotLogger(
     selectedClub: Club?,
     onClubSelected: (Club) -> Unit,
     onShotLogged: (ShotResult) -> Unit,
+    hapticFeedback: HapticFeedbackManager,
     modifier: Modifier = Modifier
 ) {
     // Local state for tracking lie selection (before miss direction if needed)
     var pendingLie by remember { mutableStateOf<Lie?>(null) }
-
-    val view = LocalView.current
-    val performHapticFeedback = remember {
-        {
-            view.performHapticFeedback(
-                HapticFeedbackConstants.CONFIRM,
-                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-            )
-        }
-    }
 
     Column(
         modifier = modifier
@@ -101,6 +92,7 @@ fun ShotLogger(
             clubs = clubs,
             selectedClub = selectedClub,
             onClubSelected = {
+                hapticFeedback.tap() // Haptic feedback on club selection
                 onClubSelected(it)
                 // Reset pending lie when club changes
                 pendingLie = null
@@ -122,10 +114,11 @@ fun ShotLogger(
                     onResultSelected = { lie ->
                         // Check if miss direction is needed
                         if (requiresMissDirection(lie)) {
+                            hapticFeedback.tap() // Haptic feedback on lie selection
                             pendingLie = lie
                         } else {
                             // Log shot immediately without miss direction
-                            performHapticFeedback()
+                            // Success haptic is triggered by caller when shot is confirmed
                             onShotLogged(ShotResult(lie = lie, missDirection = null))
                             pendingLie = null
                         }
@@ -148,7 +141,7 @@ fun ShotLogger(
                 MissDirectionSelector(
                     onDirectionSelected = { missDirection ->
                         // Log shot with lie and miss direction
-                        performHapticFeedback()
+                        // Success haptic is triggered by caller when shot is confirmed
                         onShotLogged(
                             ShotResult(
                                 lie = pendingLie!!,
@@ -185,12 +178,16 @@ private fun requiresMissDirection(lie: Lie): Boolean {
 @Preview(name = "Shot Logger - Initial State", showBackground = true)
 @Composable
 private fun PreviewShotLoggerInitial() {
+    val view = LocalView.current
+    val hapticFeedback = remember { HapticFeedbackManager(view, enabled = true) }
+
     CaddyProTheme {
         ShotLogger(
             clubs = previewClubs(),
             selectedClub = null,
             onClubSelected = {},
-            onShotLogged = {}
+            onShotLogged = {},
+            hapticFeedback = hapticFeedback
         )
     }
 }
@@ -198,12 +195,16 @@ private fun PreviewShotLoggerInitial() {
 @Preview(name = "Shot Logger - Club Selected", showBackground = true)
 @Composable
 private fun PreviewShotLoggerClubSelected() {
+    val view = LocalView.current
+    val hapticFeedback = remember { HapticFeedbackManager(view, enabled = true) }
+
     CaddyProTheme {
         ShotLogger(
             clubs = previewClubs(),
             selectedClub = previewClubs()[0],
             onClubSelected = {},
-            onShotLogged = {}
+            onShotLogged = {},
+            hapticFeedback = hapticFeedback
         )
     }
 }
@@ -211,12 +212,16 @@ private fun PreviewShotLoggerClubSelected() {
 @Preview(name = "Shot Logger - Full Screen", showBackground = true, heightDp = 800)
 @Composable
 private fun PreviewShotLoggerFullScreen() {
+    val view = LocalView.current
+    val hapticFeedback = remember { HapticFeedbackManager(view, enabled = true) }
+
     CaddyProTheme {
         ShotLogger(
             clubs = previewClubs(),
             selectedClub = previewClubs()[3],
             onClubSelected = {},
-            onShotLogged = {}
+            onShotLogged = {},
+            hapticFeedback = hapticFeedback
         )
     }
 }

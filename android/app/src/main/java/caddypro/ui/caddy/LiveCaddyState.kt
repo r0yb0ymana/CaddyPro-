@@ -33,6 +33,7 @@ import com.example.app.domain.navcaddy.models.Club
  * @property selectedClub Currently selected club for shot logging (null if no selection)
  * @property isShotLoggerVisible True when shot logger UI is displayed
  * @property lastShotConfirmed True briefly after shot is logged (for haptic/visual feedback)
+ * @property lastShotDetails Formatted details of the last logged shot (for confirmation toast)
  * @property isWeatherHudExpanded True when weather HUD is expanded to show details
  * @property isReadinessDetailsVisible True when readiness breakdown is shown
  * @property isStrategyMapVisible True when hole strategy map is displayed
@@ -51,6 +52,7 @@ data class LiveCaddyState(
     val selectedClub: Club? = null,
     val isShotLoggerVisible: Boolean = false,
     val lastShotConfirmed: Boolean = false,
+    val lastShotDetails: String = "",
 
     // HUD visibility (R2, R3, R4: Forecaster HUD, BodyCaddy, PinSeeker AI Map)
     val isWeatherHudExpanded: Boolean = false,
@@ -121,6 +123,14 @@ sealed interface LiveCaddyAction {
      * Spec reference: R6 (Real-Time Shot Logger)
      */
     data object DismissShotLogger : LiveCaddyAction
+
+    /**
+     * Dismiss the shot confirmation toast.
+     *
+     * Spec reference: R6 (Real-Time Shot Logger)
+     * Acceptance criteria: A4 (haptic confirmation)
+     */
+    data object DismissShotConfirmation : LiveCaddyAction
 
     /**
      * Advance to a different hole.

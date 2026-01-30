@@ -46,13 +46,14 @@ import kotlin.test.assertTrue
  * Validates:
  * - Initial state and context loading
  * - Shot logging with error handling
+ * - Haptic feedback confirmation (Task 22, A4)
  * - Round management (advance hole, end round)
  * - HUD visibility toggles
  * - Settings updates
  * - Offline-first support
  *
  * Spec reference: live-caddy-mode.md R1-R7
- * Plan reference: live-caddy-mode-plan.md Task 13
+ * Plan reference: live-caddy-mode-plan.md Task 13, Task 22
  * Acceptance criteria: A1-A4 (all)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -225,6 +226,87 @@ class LiveCaddyViewModelTest {
 
         // And: LogShot use case was called
         coVerify { logShot(testClub, shotResult) }
+    }
+
+    @Test
+    fun `logShot success sets formatted shot details for toast`() = runTest {
+        // Given: ViewModel with selected club
+        coEvery { getLiveCaddyContext() } returns Result.success(createMockContext())
+        viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val testClub = createTestClub("Driver")
+        viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // And: LogShot use case succeeds
+        coEvery { logShot(any(), any()) } returns Result.success(Unit)
+
+        // When: User logs a shot with miss direction
+        val shotResult = ShotResult(lie = Lie.ROUGH, missDirection = MissDirection.RIGHT)
+        viewModel.onAction(LiveCaddyAction.LogShot(shotResult))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: Shot details are formatted correctly
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("Driver → ROUGH (RIGHT)", state.lastShotDetails)
+            assertTrue(state.lastShotConfirmed)
+        }
+    }
+
+    @Test
+    fun `logShot without miss direction formats details correctly`() = runTest {
+        // Given: ViewModel with selected club
+        coEvery { getLiveCaddyContext() } returns Result.success(createMockContext())
+        viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // And: LogShot use case succeeds
+        coEvery { logShot(any(), any()) } returns Result.success(Unit)
+
+        // When: User logs a shot without miss direction
+        val shotResult = ShotResult(lie = Lie.GREEN, missDirection = null)
+        viewModel.onAction(LiveCaddyAction.LogShot(shotResult))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: Shot details formatted without miss direction
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("7-iron → GREEN", state.lastShotDetails)
+            assertTrue(state.lastShotConfirmed)
+        }
+    }
+
+    @Test
+    fun `dismissShotConfirmation resets confirmation state`() = runTest {
+        // Given: ViewModel with confirmed shot
+        coEvery { getLiveCaddyContext() } returns Result.success(createMockContext())
+        viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coEvery { logShot(any(), any()) } returns Result.success(Unit)
+        viewModel.onAction(LiveCaddyAction.LogShot(ShotResult(lie = Lie.FAIRWAY, missDirection = null)))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When: User dismisses the confirmation toast
+        viewModel.onAction(LiveCaddyAction.DismissShotConfirmation)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: Confirmation state is reset
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertFalse(state.lastShotConfirmed)
+            assertEquals("", state.lastShotDetails)
+        }
     }
 
     @Test
