@@ -7,10 +7,11 @@ import caddypro.domain.navcaddy.models.*
  * Provides lookup and query capabilities.
  *
  * This is the single source of truth for intent configuration.
- * All 15 MVP intents are registered here with their required/optional entities,
+ * All MVP intents are registered here with their required/optional entities,
  * routing targets, and example phrases.
  *
  * Spec reference: navcaddy-engine.md R2, navcaddy-engine-plan.md Task 5
+ * Live Caddy reference: live-caddy-mode.md R5, live-caddy-mode-plan.md Task 24
  */
 object IntentRegistry {
     private val schemas: Map<IntentType, IntentSchema> = buildSchemas()
@@ -76,7 +77,7 @@ object IntentRegistry {
     }
 
     /**
-     * Build all 15 MVP intent schemas.
+     * Build all MVP intent schemas including Live Caddy mode intents.
      */
     private fun buildSchemas(): Map<IntentType, IntentSchema> = mapOf(
         IntentType.CLUB_ADJUSTMENT to IntentSchema(
@@ -129,8 +130,8 @@ object IntentRegistry {
             optionalEntities = setOf(EntityType.CLUB, EntityType.YARDAGE, EntityType.LIE, EntityType.WIND),
             defaultRoutingTarget = RoutingTarget(
                 module = Module.CADDY,
-                screen = "ShotAdvisorScreen",
-                parameters = emptyMap()
+                screen = "LiveCaddyScreen",
+                parameters = mapOf("expandStrategy" to true)
             ),
             requiresNavigation = true,
             examplePhrases = listOf(
@@ -138,7 +139,8 @@ object IntentRegistry {
                 "150 yards into the wind, what's the play?",
                 "Big tee shot, what should I do?",
                 "Recommend a shot from the rough",
-                "Help me with this approach shot"
+                "Help me with this approach shot",
+                "What's the play off the tee?"
             )
         ),
 
@@ -209,8 +211,8 @@ object IntentRegistry {
             optionalEntities = emptySet(),
             defaultRoutingTarget = RoutingTarget(
                 module = Module.CADDY,
-                screen = "WeatherScreen",
-                parameters = emptyMap()
+                screen = "LiveCaddyScreen",
+                parameters = mapOf("expandWeather" to true)
             ),
             requiresNavigation = true,
             examplePhrases = listOf(
@@ -218,7 +220,8 @@ object IntentRegistry {
                 "How's the wind today?",
                 "Check the forecast",
                 "Is it going to rain?",
-                "Show me the weather"
+                "Show me the weather",
+                "How's the wind?"
             )
         ),
 
@@ -383,6 +386,50 @@ object IntentRegistry {
                 "Send feedback",
                 "I found a bug",
                 "Suggestion for improvement"
+            )
+        ),
+
+        // Live Caddy Mode intents (Task 24)
+
+        IntentType.BAILOUT_QUERY to IntentSchema(
+            intentType = IntentType.BAILOUT_QUERY,
+            displayName = "Bailout Query",
+            description = "Ask where to aim for safe miss or bailout area",
+            requiredEntities = emptySet(),
+            optionalEntities = emptySet(),
+            defaultRoutingTarget = RoutingTarget(
+                module = Module.CADDY,
+                screen = "LiveCaddyScreen",
+                parameters = mapOf("expandStrategy" to true, "highlightBailout" to true)
+            ),
+            requiresNavigation = true,
+            examplePhrases = listOf(
+                "Where's the bailout?",
+                "Where should I miss?",
+                "What's the safe play?",
+                "Where can I bail out?",
+                "What's the safest area to miss?"
+            )
+        ),
+
+        IntentType.READINESS_CHECK to IntentSchema(
+            intentType = IntentType.READINESS_CHECK,
+            displayName = "Readiness Check",
+            description = "Check readiness score and how it affects strategy",
+            requiredEntities = emptySet(),
+            optionalEntities = emptySet(),
+            defaultRoutingTarget = RoutingTarget(
+                module = Module.CADDY,
+                screen = "LiveCaddyScreen",
+                parameters = mapOf("expandReadiness" to true)
+            ),
+            requiresNavigation = true,
+            examplePhrases = listOf(
+                "How am I feeling?",
+                "What's my readiness?",
+                "Am I ready for this shot?",
+                "How's my body doing?",
+                "Should I play conservative today?"
             )
         )
     )

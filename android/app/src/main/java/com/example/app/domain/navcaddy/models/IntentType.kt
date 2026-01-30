@@ -7,6 +7,7 @@ package caddypro.domain.navcaddy.models
  * across the app's modules (Caddy, Coach, Recovery, Settings).
  *
  * Spec reference: navcaddy-engine.md R2, Q1
+ * Live Caddy reference: live-caddy-mode.md R5, live-caddy-mode-plan.md Task 24
  */
 enum class IntentType {
     /** Request to adjust club distances or yardage expectations */
@@ -52,5 +53,13 @@ enum class IntentType {
     HELP_REQUEST,
 
     /** User providing feedback about the app */
-    FEEDBACK
+    FEEDBACK,
+
+    // Live Caddy Mode intents (Task 24)
+
+    /** Query about bailout location or safe miss area */
+    BAILOUT_QUERY,
+
+    /** Query about readiness score and how it affects strategy in Live Caddy mode */
+    READINESS_CHECK
 }
