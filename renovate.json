@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    ":prHourlyLimitNone",
+    ":prConcurrentLimitNone",
+    "group:monorepos",
+    "group:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["androidx.compose", "androidx.ui"],
+      "groupName": "androidx-compose"
+    },
+    {
+      "matchPackagePatterns": ["kotlin", "ksp"],
+      "groupName": "kotlin"
+    },
+    {
+      "matchPackagePatterns": ["hilt", "dagger"],
+      "groupName": "hilt"
+    },
+    {
+      "matchPackagePatterns": ["retrofit", "okhttp"],
+      "groupName": "networking"
+    },
+    {
+      "matchPackagePatterns": ["junit", "espresso", "mockk"],
+      "groupName": "testing"
+    }
+  ],
+  "ignoreDeps": [],
+  "labels": ["dependencies"],
+  "schedule": ["before 5am on monday"]
+}

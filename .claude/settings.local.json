@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(./gradlew compileDevDebugKotlin:*)",
+      "Bash(.gradlew compileDevDebugKotlin:*)",
+      "Bash(./gradlew :app:compileDevDebugKotlin:*)",
+      "Bash(where:*)",
+      "Bash(./gradlew assembleDevDebug:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(.gradlew testDevDebugUnitTest:*)",
+      "Bash(./gradlew testDevDebugUnitTest:*)",
+      "Bash(echo:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}

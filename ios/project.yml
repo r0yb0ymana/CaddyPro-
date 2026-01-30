@@ -1,0 +1,52 @@
+name: CaddyPro+
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: 17.0
+  xcodeVersion: 15.0
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+packages:
+  App:
+    path: App
+
+targets:
+  App:
+    type: application
+    platform: iOS
+    deploymentTarget: 17.0
+    sources: []  # Sources are managed by the Swift Package
+    dependencies:
+      - package: App
+        product: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.leroyniania.caddypro
+        INFOPLIST_FILE: Info.plist
+        marketingVersion: 1.0.0
+        currentProjectVersion: 1
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 2RPDGS5ZUJ
+      configs:
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf
+        Release:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
+schemes:
+  App:
+    build:
+      targets:
+        App: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

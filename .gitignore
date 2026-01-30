@@ -1,0 +1,319 @@
+# Claude Code
+.claude/settings.json
+.claude/.claude_history
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ===================
+# Android
+# ===================
+
+# Gradle
+.gradle/
+**/build/
+!**/src/**/build/
+
+# Local configuration
+local.properties
+*.local.properties
+
+# Android Studio
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing
+*.jks
+*.keystore
+!debug.keystore
+release-keystore.jks
+signing.properties
+
+# Generated files
+*.apk
+*.ap_
+*.aab
+*.dex
+
+# Google Services (contains API keys)
+google-services.json
+app/google-services.json
+
+# Firebase
+firebase-debug.log
+.firebaserc
+
+# ProGuard
+proguard/
+mapping.txt
+seeds.txt
+usage.txt
+
+# Android Profiler
+*.hprof
+
+# NDK
+obj/
+
+# Kotlin
+*.kotlin_module
+
+# ===================
+# iOS / Xcode
+# ===================
+
+# Xcode build artifacts
+DerivedData/
+build/
+*.build/
+
+# Xcode user-specific files
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Xcode project files (keep only shared schemes)
+*.xcodeproj/xcshareddata/xcschemes/*
+!*.xcodeproj/xcshareddata/xcschemes/*.xcscheme
+
+# Interface Builder
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Code signing
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+ExportOptions.plist
+
+# Archives
+*.xcarchive
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# CocoaPods
+Pods/
+Podfile.lock
+!Podfile
+
+# Carthage
+Carthage/Build/
+Carthage/Checkouts/
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+.build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# AppCode
+*.apc
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# ===================
+# Python
+# ===================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# ===================
+# Node.js
+# ===================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# ===================
+# Rust
+# ===================
+target/
+Cargo.lock
+**/*.rs.bk
+
+# ===================
+# Go
+# ===================
+*.exe
+*.exe~
+*.dll
+*.dylib
+*.test
+go.work
+
+# ===================
+# Ruby (for Fastlane)
+# ===================
+*.gem
+*.rbc
+/.config
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+/tmp/
+.bundle/
+vendor/bundle
+Gemfile.lock
+
+# ===================
+# Logs
+# ===================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# ===================
+# Database
+# ===================
+*.db
+*.sqlite
+*.sqlite3
+
+# ===================
+# Secrets (NEVER commit these)
+# ===================
+**/Secrets.swift
+.env
+.env.local
+.env.*.local
+.env.development
+.env.staging
+.env.production
+secrets.json
+credentials.json
+*.pem
+*.key
+.secrets/
+AuthKey_*.p8
+
+# MCP configuration (contains credentials)
+.mcp.json
+
+# ===================
+# Temporary files
+# ===================
+*.tmp
+*.temp
+.scratch/
+.notes/
+
+# ===================
+# Build artifacts
+# ===================
+dist/
+out/
+*.min.js
+*.min.css
+
+# ===================
+# Testing
+# ===================
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+*.xcresult/
+test_output/
+
+# ===================
+# Documentation builds
+# ===================
+_site/
+.jekyll-cache/
+.jekyll-metadata
+site/
+
+# ===================
+# Backup files
+# ===================
+*.bak
+*.backup
