@@ -2,6 +2,8 @@ package caddypro.di
 
 import android.content.Context
 import androidx.room.Room
+import caddypro.BuildConfig
+import caddypro.data.caddy.local.dao.ReadinessScoreDao
 import caddypro.data.navcaddy.NavCaddyDatabase
 import caddypro.data.navcaddy.dao.BagClubDao
 import caddypro.data.navcaddy.dao.BagProfileDao
@@ -26,6 +28,7 @@ import javax.inject.Singleton
  *
  * Spec reference: navcaddy-engine.md R5, R6, C4
  *                 player-profile-bag-management.md R1, R2, R3
+ *                 live-caddy-mode.md R3 (BodyCaddy)
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -33,6 +36,8 @@ object NavCaddyDataModule {
 
     /**
      * Provide the NavCaddy Room database.
+     *
+     * Includes migration from v2 to v3 for readiness_scores table.
      *
      * TODO: Add SQLCipher encryption for C4 compliance.
      */
@@ -48,7 +53,13 @@ object NavCaddyDataModule {
         )
             // TODO: Add encryption via SQLCipher for sensitive data (C4)
             // .openHelperFactory(SupportFactory(SQLiteDatabase.getBytes("passphrase".toCharArray())))
-            .fallbackToDestructiveMigration() // For development; use migrations in production
+            .addMigrations(NavCaddyDatabase.MIGRATION_2_3)
+            .apply {
+                // Only allow destructive migration in debug builds to prevent data loss
+                if (BuildConfig.DEBUG) {
+                    fallbackToDestructiveMigration()
+                }
+            }
             .build()
     }
 
@@ -104,6 +115,15 @@ object NavCaddyDataModule {
     @Singleton
     fun provideDistanceAuditDao(database: NavCaddyDatabase): DistanceAuditDao {
         return database.distanceAuditDao()
+    }
+
+    /**
+     * Provide ReadinessScoreDao from database.
+     */
+    @Provides
+    @Singleton
+    fun provideReadinessScoreDao(database: NavCaddyDatabase): ReadinessScoreDao {
+        return database.readinessScoreDao()
     }
 }
 
