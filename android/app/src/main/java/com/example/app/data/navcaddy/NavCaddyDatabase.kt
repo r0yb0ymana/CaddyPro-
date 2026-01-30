@@ -5,7 +5,9 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import caddypro.data.caddy.local.dao.ReadinessScoreDao
+import caddypro.data.caddy.local.dao.SyncQueueDao
 import caddypro.data.caddy.local.entities.ReadinessScoreEntity
+import caddypro.data.caddy.local.entities.SyncQueueEntity
 import caddypro.data.navcaddy.dao.BagClubDao
 import caddypro.data.navcaddy.dao.BagProfileDao
 import caddypro.data.navcaddy.dao.DistanceAuditDao
@@ -24,17 +26,19 @@ import caddypro.data.navcaddy.entities.ShotEntity
  * Room database for NavCaddy engine persistence.
  *
  * Stores shots, miss patterns, session context, conversation history,
- * bag profiles, club data, distance audit trail, and readiness scores to support
- * contextual memory, personalization, bag management, and live caddy mode.
+ * bag profiles, club data, distance audit trail, readiness scores, and
+ * offline sync queue to support contextual memory, personalization,
+ * bag management, live caddy mode, and offline-first functionality.
  *
  * Spec reference: navcaddy-engine.md R5, R6, C4, C5
  *                 player-profile-bag-management.md R1, R2, R3
- *                 live-caddy-mode.md R3 (BodyCaddy)
+ *                 live-caddy-mode.md R3 (BodyCaddy), R6 (Real-Time Shot Logger)
  *
  * Database version history:
  * - Version 1: Initial schema with shots, miss_patterns, sessions, conversation_turns
  * - Version 2: Added bag_profiles, bag_clubs, distance_audits for bag management
  * - Version 3: Added readiness_scores for Live Caddy mode BodyCaddy feature
+ * - Version 4: Added sync_queue for offline-first shot logging
  */
 @Database(
     entities = [
@@ -45,9 +49,10 @@ import caddypro.data.navcaddy.entities.ShotEntity
         BagProfileEntity::class,
         BagClubEntity::class,
         DistanceAuditEntity::class,
-        ReadinessScoreEntity::class
+        ReadinessScoreEntity::class,
+        SyncQueueEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class NavCaddyDatabase : RoomDatabase() {
@@ -86,6 +91,11 @@ abstract class NavCaddyDatabase : RoomDatabase() {
      */
     abstract fun readinessScoreDao(): ReadinessScoreDao
 
+    /**
+     * DAO for offline sync queue operations.
+     */
+    abstract fun syncQueueDao(): SyncQueueDao
+
     companion object {
         /** Database name */
         const val DATABASE_NAME = "navcaddy_database"
@@ -117,6 +127,45 @@ abstract class NavCaddyDatabase : RoomDatabase() {
                 // Create index on timestamp for efficient queries
                 database.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_readiness_scores_timestamp ON readiness_scores(timestamp)"
+                )
+            }
+        }
+
+        /**
+         * Migration from version 3 to 4: Add sync_queue table.
+         *
+         * Creates the sync_queue table for offline-first shot logging with
+         * background sync when connectivity returns.
+         *
+         * Spec reference: live-caddy-mode.md R6 (Real-Time Shot Logger)
+         * Plan reference: live-caddy-mode-plan.md Task 19
+         * Acceptance criteria: A4 (Shot logger persistence)
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sync_queue (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        operation_type TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        retry_count INTEGER NOT NULL DEFAULT 0,
+                        last_attempt_timestamp INTEGER,
+                        error_message TEXT
+                    )
+                    """.trimIndent()
+                )
+
+                // Create index on status for efficient pending operation queries
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_sync_queue_status ON sync_queue(status)"
+                )
+
+                // Create index on timestamp for FIFO ordering
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_sync_queue_timestamp ON sync_queue(timestamp)"
                 )
             }
         }

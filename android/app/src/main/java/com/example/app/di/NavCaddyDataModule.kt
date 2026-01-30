@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import caddypro.BuildConfig
 import caddypro.data.caddy.local.dao.ReadinessScoreDao
+import caddypro.data.caddy.local.dao.SyncQueueDao
 import caddypro.data.navcaddy.NavCaddyDatabase
 import caddypro.data.navcaddy.dao.BagClubDao
 import caddypro.data.navcaddy.dao.BagProfileDao
@@ -28,7 +29,7 @@ import javax.inject.Singleton
  *
  * Spec reference: navcaddy-engine.md R5, R6, C4
  *                 player-profile-bag-management.md R1, R2, R3
- *                 live-caddy-mode.md R3 (BodyCaddy)
+ *                 live-caddy-mode.md R3 (BodyCaddy), R6 (Real-Time Shot Logger)
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -37,7 +38,9 @@ object NavCaddyDataModule {
     /**
      * Provide the NavCaddy Room database.
      *
-     * Includes migration from v2 to v3 for readiness_scores table.
+     * Includes migrations:
+     * - v2 to v3: readiness_scores table
+     * - v3 to v4: sync_queue table
      *
      * TODO: Add SQLCipher encryption for C4 compliance.
      */
@@ -53,7 +56,10 @@ object NavCaddyDataModule {
         )
             // TODO: Add encryption via SQLCipher for sensitive data (C4)
             // .openHelperFactory(SupportFactory(SQLiteDatabase.getBytes("passphrase".toCharArray())))
-            .addMigrations(NavCaddyDatabase.MIGRATION_2_3)
+            .addMigrations(
+                NavCaddyDatabase.MIGRATION_2_3,
+                NavCaddyDatabase.MIGRATION_3_4
+            )
             .apply {
                 // Only allow destructive migration in debug builds to prevent data loss
                 if (BuildConfig.DEBUG) {
@@ -124,6 +130,15 @@ object NavCaddyDataModule {
     @Singleton
     fun provideReadinessScoreDao(database: NavCaddyDatabase): ReadinessScoreDao {
         return database.readinessScoreDao()
+    }
+
+    /**
+     * Provide SyncQueueDao from database.
+     */
+    @Provides
+    @Singleton
+    fun provideSyncQueueDao(database: NavCaddyDatabase): SyncQueueDao {
+        return database.syncQueueDao()
     }
 }
 
