@@ -17,7 +17,13 @@ import caddypro.ui.screens.HomeScreen
  * Defines all composable routes and navigation structure using Jetpack Navigation Compose.
  * Integrates with NavCaddyNavigator for domain-driven navigation.
  *
- * Spec reference: live-caddy-mode.md R1, R5, live-caddy-mode-plan.md Task 23
+ * Features:
+ * - Home screen with Live Caddy entry points (Task 25)
+ * - Live Caddy screen with full HUD integration
+ * - Round start flow (placeholder)
+ * - Round end summary (placeholder)
+ *
+ * Spec reference: live-caddy-mode.md R1, R5, live-caddy-mode-plan.md Task 23, Task 25
  *
  * @param navController Navigation controller for managing the back stack
  */
@@ -29,6 +35,7 @@ fun AppNavigation(
         navController = navController,
         startDestination = Screen.Home.route
     ) {
+        // Home screen with Live Caddy entry points (Task 25)
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToDetail = { id ->
@@ -36,6 +43,9 @@ fun AppNavigation(
                 },
                 onNavigateToLiveCaddy = {
                     navController.navigate(NavCaddyDestination.LiveCaddy.toRoute())
+                },
+                onStartRound = {
+                    navController.navigate(NavCaddyDestination.RoundStart().toRoute())
                 }
             )
         }
@@ -75,6 +85,20 @@ fun AppNavigation(
         // Spec: live-caddy-mode.md R1 (Live Round Context)
         composable(NavCaddyDestination.RoundStart().toRoute()) {
             // TODO: Implement StartRoundScreen when created
+            // For now, this is a placeholder that navigates directly to Live Caddy
+            // In a real implementation, this would show a form to:
+            // - Select course
+            // - Set starting hole
+            // - Configure round settings
+            // Then call StartRoundUseCase before navigating to Live Caddy
+
+            // Placeholder: Navigate directly to Live Caddy
+            // This will be replaced with actual StartRoundScreen implementation
+            navController.navigate(NavCaddyDestination.LiveCaddy.toRoute()) {
+                popUpTo(Screen.Home.route)
+            }
+
+            // Future implementation:
             // StartRoundScreen(
             //     onRoundStarted = {
             //         navController.navigate(NavCaddyDestination.LiveCaddy.toRoute()) {
