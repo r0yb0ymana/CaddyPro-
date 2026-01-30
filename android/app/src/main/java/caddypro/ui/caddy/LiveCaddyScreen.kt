@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import caddypro.domain.caddy.models.Location
 import caddypro.domain.caddy.models.WeatherData
 import caddypro.domain.navcaddy.context.RoundState
+import caddypro.ui.caddy.components.ConnectivityBanner
 import caddypro.ui.caddy.components.ForecasterHud
 import caddypro.ui.caddy.components.HapticFeedbackManager
 import caddypro.ui.caddy.components.PinSeekerMap
@@ -229,6 +230,12 @@ private fun LiveCaddyContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Task 20: Network connectivity status
+        ConnectivityBanner(
+            isOnline = !state.isOffline,
+            pendingShotsCount = state.pendingShotsCount
+        )
+
         // R7: Safety and Distraction Controls - Warning banner (shown at top)
         DistractionWarningBanner()
 

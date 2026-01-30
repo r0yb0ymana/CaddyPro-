@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import caddypro.analytics.NavCaddyAnalytics
 import caddypro.data.caddy.local.LiveCaddySettingsDataStore
+import caddypro.data.caddy.repository.SyncQueueRepository
 import caddypro.domain.caddy.repositories.ClubBagRepository
 import caddypro.domain.caddy.usecases.EndRoundUseCase
 import caddypro.domain.caddy.usecases.GetLiveCaddyContextUseCase
 import caddypro.domain.caddy.usecases.LogShotUseCase
 import caddypro.domain.caddy.usecases.UpdateHoleUseCase
+import caddypro.domain.navcaddy.offline.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,11 +29,12 @@ import javax.inject.Inject
  * - Round management (advance hole, end round)
  * - HUD visibility toggles
  * - Settings persistence
+ * - Network connectivity monitoring and offline sync
  *
  * All use cases support offline-first operation with local caching.
  *
- * Spec reference: live-caddy-mode.md R1-R7
- * Plan reference: live-caddy-mode-plan.md Task 13
+ * Spec reference: live-caddy-mode.md R1-R7, C3 (offline-first)
+ * Plan reference: live-caddy-mode-plan.md Task 13, Task 20
  * Acceptance criteria: A1-A4 (all)
  *
  * @property getLiveCaddyContext Use case to fetch all live caddy context
@@ -40,6 +43,8 @@ import javax.inject.Inject
  * @property updateHole Use case to advance to a different hole
  * @property clubBagRepository Repository for accessing active bag clubs
  * @property settingsDataStore DataStore for persisting settings
+ * @property networkMonitor Monitor for network connectivity state (Task 20)
+ * @property syncQueueRepository Repository for tracking pending sync operations (Task 20)
  * @property analytics Analytics logger for tracking events
  */
 @HiltViewModel
@@ -50,6 +55,8 @@ class LiveCaddyViewModel @Inject constructor(
     private val updateHole: UpdateHoleUseCase,
     private val clubBagRepository: ClubBagRepository,
     private val settingsDataStore: LiveCaddySettingsDataStore,
+    private val networkMonitor: NetworkMonitor,
+    private val syncQueueRepository: SyncQueueRepository,
     private val analytics: NavCaddyAnalytics
 ) : ViewModel() {
 
@@ -66,6 +73,49 @@ class LiveCaddyViewModel @Inject constructor(
         loadSettings()
         loadContext()
         loadClubs()
+        observeConnectivity()
+        observePendingShots()
+    }
+
+    /**
+     * Observe network connectivity state.
+     *
+     * Monitors connectivity changes and updates UI state accordingly.
+     * Automatically triggers sync when connectivity is restored.
+     *
+     * Spec reference: live-caddy-mode.md C3 (Offline-first), R6 (offline queueing)
+     * Plan reference: live-caddy-mode-plan.md Task 20
+     * Acceptance criteria: A4 (shot logger with poor reception)
+     */
+    private fun observeConnectivity() {
+        viewModelScope.launch {
+            networkMonitor.isOnline.collect { isOnline ->
+                _uiState.update { it.copy(isOffline = !isOnline) }
+
+                // Note: SyncWorker handles automatic sync via WorkManager
+                // when connectivity is restored. No need to manually trigger here.
+                // The worker is enqueued as a network-constrained work request
+                // and will execute automatically when network becomes available.
+            }
+        }
+    }
+
+    /**
+     * Observe pending shots count from sync queue.
+     *
+     * Monitors the count of shots waiting to be synced and updates UI state
+     * to display connectivity banner when shots are pending.
+     *
+     * Spec reference: live-caddy-mode.md C3 (Offline-first), R6 (offline queueing)
+     * Plan reference: live-caddy-mode-plan.md Task 20
+     * Acceptance criteria: A4 (shot logger with poor reception)
+     */
+    private fun observePendingShots() {
+        viewModelScope.launch {
+            syncQueueRepository.observePendingCount().collect { count ->
+                _uiState.update { it.copy(pendingShotsCount = count) }
+            }
+        }
     }
 
     /**

@@ -17,9 +17,10 @@ import com.example.app.domain.navcaddy.models.Club
  * - Hole strategy with hazard awareness
  * - Shot logger state
  * - HUD visibility toggles
+ * - Network connectivity and offline sync status
  *
  * Spec reference: live-caddy-mode.md R1-R7
- * Plan reference: live-caddy-mode-plan.md Task 13
+ * Plan reference: live-caddy-mode-plan.md Task 13, Task 20
  * Acceptance criteria: A1-A4 (all)
  *
  * @property roundState Current active round state (null if no round active)
@@ -37,6 +38,8 @@ import com.example.app.domain.navcaddy.models.Club
  * @property isWeatherHudExpanded True when weather HUD is expanded to show details
  * @property isReadinessDetailsVisible True when readiness breakdown is shown
  * @property isStrategyMapVisible True when hole strategy map is displayed
+ * @property isOffline True when device has no network connectivity (Task 20)
+ * @property pendingShotsCount Number of shots queued for sync when offline (Task 20)
  */
 data class LiveCaddyState(
     val roundState: RoundState? = null,
@@ -57,7 +60,14 @@ data class LiveCaddyState(
     // HUD visibility (R2, R3, R4: Forecaster HUD, BodyCaddy, PinSeeker AI Map)
     val isWeatherHudExpanded: Boolean = false,
     val isReadinessDetailsVisible: Boolean = false,
-    val isStrategyMapVisible: Boolean = false
+    val isStrategyMapVisible: Boolean = false,
+
+    // Network connectivity and offline sync (Task 20: C3 Offline-first, R6 offline queueing)
+    // Spec reference: live-caddy-mode.md C3, R6
+    // Plan reference: live-caddy-mode-plan.md Task 20
+    // Acceptance criteria: A4 (shot logger with poor reception)
+    val isOffline: Boolean = false,
+    val pendingShotsCount: Int = 0
 )
 
 /**
