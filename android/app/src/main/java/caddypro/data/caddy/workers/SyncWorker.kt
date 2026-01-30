@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import caddypro.analytics.NavCaddyAnalytics
 import caddypro.data.caddy.repository.SyncQueueRepository
 import caddypro.domain.caddy.models.SyncOperation
 import caddypro.domain.navcaddy.offline.NetworkMonitor
@@ -36,7 +37,8 @@ class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val syncQueueRepository: SyncQueueRepository,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val analytics: NavCaddyAnalytics
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -65,11 +67,21 @@ class SyncWorker @AssistedInject constructor(
                     continue
                 }
 
+                // Track sync latency
+                val syncStartTime = System.currentTimeMillis()
+
                 // Process the operation
                 val result = processOperation(operation)
 
                 when (result) {
                     ProcessResult.SUCCESS -> {
+                        // Track successful sync latency
+                        val syncLatency = System.currentTimeMillis() - syncStartTime
+                        analytics.logShotSynced(
+                            shotId = operation.id,
+                            latencyMs = syncLatency
+                        )
+
                         // Mark as synced and delete
                         syncQueueRepository.updateStatus(
                             operation.id,

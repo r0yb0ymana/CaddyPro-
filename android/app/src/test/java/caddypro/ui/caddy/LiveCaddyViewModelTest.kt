@@ -7,6 +7,7 @@ import caddypro.domain.caddy.models.HoleStrategy
 import caddypro.domain.caddy.models.LiveCaddySettings
 import caddypro.domain.caddy.models.ReadinessScore
 import caddypro.domain.caddy.models.WeatherData
+import caddypro.domain.caddy.repositories.ClubBagRepository
 import caddypro.domain.caddy.usecases.EndRoundUseCase
 import caddypro.domain.caddy.usecases.GetLiveCaddyContextUseCase
 import caddypro.domain.caddy.usecases.LiveCaddyContext
@@ -51,9 +52,10 @@ import kotlin.test.assertTrue
  * - HUD visibility toggles
  * - Settings updates
  * - Offline-first support
+ * - Analytics & latency tracking (Task 21)
  *
  * Spec reference: live-caddy-mode.md R1-R7
- * Plan reference: live-caddy-mode-plan.md Task 13, Task 22
+ * Plan reference: live-caddy-mode-plan.md Task 13, Task 21, Task 22
  * Acceptance criteria: A1-A4 (all)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -65,6 +67,7 @@ class LiveCaddyViewModelTest {
     private lateinit var logShot: LogShotUseCase
     private lateinit var endRound: EndRoundUseCase
     private lateinit var updateHole: UpdateHoleUseCase
+    private lateinit var clubBagRepository: ClubBagRepository
     private lateinit var settingsDataStore: LiveCaddySettingsDataStore
     private lateinit var analytics: NavCaddyAnalytics
 
@@ -78,11 +81,15 @@ class LiveCaddyViewModelTest {
         logShot = mockk()
         endRound = mockk()
         updateHole = mockk()
+        clubBagRepository = mockk()
         settingsDataStore = mockk()
         analytics = mockk(relaxed = true)
 
         // Default settings flow
         every { settingsDataStore.getSettings() } returns flowOf(LiveCaddySettings.default())
+
+        // Default club bag flow
+        every { clubBagRepository.getActiveBagClubs() } returns flowOf(emptyList())
     }
 
     @After
@@ -175,10 +182,35 @@ class LiveCaddyViewModelTest {
     // ========== Shot Logger Tests ==========
 
     @Test
-    fun `selectClub opens shot logger with selected club`() = runTest {
+    fun `showShotLogger opens logger and tracks analytics event`() = runTest {
         // Given: ViewModel with loaded context
         coEvery { getLiveCaddyContext() } returns Result.success(createMockContext())
         viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When: User shows shot logger
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: Shot logger is visible
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.isShotLoggerVisible)
+            assertFalse(state.lastShotConfirmed)
+        }
+
+        // And: Analytics event was tracked (Task 21)
+        verify { analytics.logShotLoggerOpened() }
+    }
+
+    @Test
+    fun `selectClub tracks club selection latency`() = runTest {
+        // Given: ViewModel with shot logger open
+        coEvery { getLiveCaddyContext() } returns Result.success(createMockContext())
+        viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("7-iron")
@@ -187,12 +219,54 @@ class LiveCaddyViewModelTest {
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then: Shot logger is visible with selected club
+        // Then: Club selection is tracked with latency (Task 21)
+        verify {
+            analytics.logClubSelected(
+                clubType = testClub.type.name,
+                latencyMs = any()
+            )
+        }
+
+        // And: Shot logger shows selected club
         viewModel.uiState.test {
             val state = awaitItem()
             assertEquals(testClub, state.selectedClub)
-            assertTrue(state.isShotLoggerVisible)
-            assertFalse(state.lastShotConfirmed)
+        }
+    }
+
+    @Test
+    fun `logShot success tracks total latency analytics`() = runTest {
+        // Given: ViewModel with selected club
+        coEvery { getLiveCaddyContext() } returns Result.success(createMockContext())
+        viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
+        viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // And: LogShot use case succeeds
+        coEvery { logShot(any(), any()) } returns Result.success(Unit)
+
+        // When: User logs a shot
+        val shotResult = ShotResult(lie = Lie.FAIRWAY, missDirection = null)
+        viewModel.onAction(LiveCaddyAction.LogShot(shotResult))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: Shot logging is tracked with total latency (Task 21)
+        verify {
+            analytics.logShotLogged(
+                clubType = testClub.type.name,
+                lie = Lie.FAIRWAY.name,
+                totalLatencyMs = any()
+            )
+        }
+
+        // And: Shot is confirmed
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.lastShotConfirmed)
         }
     }
 
@@ -204,6 +278,7 @@ class LiveCaddyViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -236,6 +311,7 @@ class LiveCaddyViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("Driver")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -263,6 +339,7 @@ class LiveCaddyViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -290,6 +367,7 @@ class LiveCaddyViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -339,6 +417,7 @@ class LiveCaddyViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -376,6 +455,7 @@ class LiveCaddyViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val testClub = createTestClub("7-iron")
+        viewModel.onAction(LiveCaddyAction.ShowShotLogger)
         viewModel.onAction(LiveCaddyAction.SelectClub(testClub))
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -640,6 +720,7 @@ class LiveCaddyViewModelTest {
             logShot = logShot,
             endRound = endRound,
             updateHole = updateHole,
+            clubBagRepository = clubBagRepository,
             settingsDataStore = settingsDataStore,
             analytics = analytics
         )

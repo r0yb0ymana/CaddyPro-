@@ -56,6 +56,12 @@ class LiveCaddyViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LiveCaddyState())
     val uiState: StateFlow<LiveCaddyState> = _uiState.asStateFlow()
 
+    // Shot logger latency tracking (Task 21)
+    // Spec reference: live-caddy-mode.md R6 (one-second logging flow)
+    // Acceptance criteria: A4 (speed requirement)
+    private var shotLoggerOpenedAt: Long = 0
+    private var clubSelectedAt: Long = 0
+
     init {
         loadSettings()
         loadContext()
@@ -200,10 +206,18 @@ class LiveCaddyViewModel @Inject constructor(
      * Show the shot logger UI.
      *
      * Opens the shot logger panel for logging a shot.
+     * Tracks the open timestamp for latency measurements.
      *
      * Spec reference: R6 (Real-Time Shot Logger)
+     * Plan reference: Task 21 (Analytics & Latency Tracking)
      */
     private fun showShotLogger() {
+        // Record timestamp for latency tracking (Task 21)
+        shotLoggerOpenedAt = System.currentTimeMillis()
+
+        // Track analytics event (Task 21)
+        analytics.logShotLoggerOpened()
+
         _uiState.update {
             it.copy(
                 isShotLoggerVisible = true,
@@ -217,12 +231,24 @@ class LiveCaddyViewModel @Inject constructor(
      * Select a club for shot logging.
      *
      * Updates the selected club in the shot logger.
+     * Tracks club selection latency for performance monitoring.
      *
      * Spec reference: R6 (Real-Time Shot Logger)
+     * Plan reference: Task 21 (Analytics & Latency Tracking)
      *
      * @param club The club to select
      */
     private fun selectClub(club: com.example.app.domain.navcaddy.models.Club) {
+        // Record timestamp and calculate latency (Task 21)
+        clubSelectedAt = System.currentTimeMillis()
+        val clubSelectionLatency = clubSelectedAt - shotLoggerOpenedAt
+
+        // Track analytics event with latency (Task 21)
+        analytics.logClubSelected(
+            clubType = club.type.name,
+            latencyMs = clubSelectionLatency
+        )
+
         _uiState.update {
             it.copy(selectedClub = club)
         }
@@ -233,9 +259,11 @@ class LiveCaddyViewModel @Inject constructor(
      *
      * Persists the shot to the repository and provides haptic confirmation.
      * Supports offline-first operation.
+     * Tracks total latency for performance monitoring.
      *
      * Spec reference: R6 (Real-Time Shot Logger)
      * Acceptance criteria: A4 (Shot logger speed and persistence)
+     * Plan reference: Task 21 (Analytics & Latency Tracking)
      *
      * @param result The shot result (lie and optional miss direction)
      */
@@ -248,6 +276,16 @@ class LiveCaddyViewModel @Inject constructor(
                 }
                 return@launch
             }
+
+            // Calculate total latency from shot logger open to shot logging (Task 21)
+            val totalLatency = System.currentTimeMillis() - shotLoggerOpenedAt
+
+            // Track analytics event with total latency (Task 21)
+            analytics.logShotLogged(
+                clubType = club.type.name,
+                lie = result.lie.name,
+                totalLatencyMs = totalLatency
+            )
 
             val logResult = logShot(club, result)
 

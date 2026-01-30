@@ -221,6 +221,100 @@ class NavCaddyAnalytics @Inject constructor() {
         logEvent(event)
     }
 
+    // Shot Logger Analytics Methods (Task 21)
+    // Spec reference: live-caddy-mode.md R6 (one-second logging flow)
+    // Acceptance criteria: A4 (speed requirement)
+
+    /**
+     * Log shot logger opened event.
+     *
+     * Call this when the user taps the FAB to open shot logger.
+     * This establishes the baseline timestamp for latency measurements.
+     */
+    fun logShotLoggerOpened() {
+        val event = AnalyticsEvent.ShotLoggerOpened(
+            sessionId = currentSessionId
+        )
+        logEvent(event)
+    }
+
+    /**
+     * Log club selection event.
+     *
+     * Tracks the latency from shot logger open to club selection.
+     * Critical for measuring one-second logging flow performance.
+     *
+     * @param clubType Type of club selected (e.g., DRIVER, IRON_7)
+     * @param latencyMs Time from shot logger open to club selection
+     */
+    fun logClubSelected(
+        clubType: String,
+        latencyMs: Long
+    ) {
+        val event = AnalyticsEvent.ClubSelected(
+            sessionId = currentSessionId,
+            clubType = clubType,
+            latencyMs = latencyMs
+        )
+        logEvent(event)
+    }
+
+    /**
+     * Log shot logged event.
+     *
+     * Tracks the total latency from FAB tap to shot saved.
+     * This is the primary performance metric for shot logging.
+     *
+     * Target: <2000ms (spec requirement)
+     * Goal: <1000ms (one-second logging flow)
+     *
+     * @param clubType Type of club used for the shot
+     * @param lie Result lie (e.g., FAIRWAY, ROUGH, GREEN)
+     * @param totalLatencyMs Total time from shot logger open to shot saved
+     */
+    fun logShotLogged(
+        clubType: String,
+        lie: String,
+        totalLatencyMs: Long
+    ) {
+        val event = AnalyticsEvent.ShotLogged(
+            sessionId = currentSessionId,
+            clubType = clubType,
+            lie = lie,
+            totalLatencyMs = totalLatencyMs
+        )
+        logEvent(event)
+
+        // Performance monitoring: warn if latency exceeds target in debug builds
+        if (caddypro.BuildConfig.DEBUG && totalLatencyMs > 2000) {
+            android.util.Log.w(
+                "ShotLogger",
+                "Shot logging exceeded 2s target: ${totalLatencyMs}ms (club=$clubType, lie=$lie)"
+            )
+        }
+    }
+
+    /**
+     * Log shot synced event.
+     *
+     * Tracks sync latency for offline-first shot logging.
+     * Monitors sync queue performance and network reliability.
+     *
+     * @param shotId Unique identifier of the synced shot
+     * @param latencyMs Time taken to sync the shot to backend
+     */
+    fun logShotSynced(
+        shotId: String,
+        latencyMs: Long
+    ) {
+        val event = AnalyticsEvent.ShotSynced(
+            sessionId = currentSessionId,
+            shotId = shotId,
+            latencyMs = latencyMs
+        )
+        logEvent(event)
+    }
+
     /**
      * Internal event logging.
      *

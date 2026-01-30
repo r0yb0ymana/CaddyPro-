@@ -229,4 +229,57 @@ class NavCaddyAnalyticsTest {
             assertEquals(sessionId, event2.sessionId)
         }
     }
+
+    // Task 21: Shot logger analytics tests
+
+    @Test
+    fun `logShotLoggerOpened emits event to stream`() = runTest {
+        analytics.eventStream.test {
+            analytics.logShotLoggerOpened()
+
+            val event = awaitItem() as AnalyticsEvent.ShotLoggerOpened
+            assertEquals(analytics.getSessionId(), event.sessionId)
+        }
+    }
+
+    @Test
+    fun `logClubSelected captures latency`() = runTest {
+        analytics.eventStream.test {
+            analytics.logClubSelected(clubType = "DRIVER", latencyMs = 500L)
+
+            val event = awaitItem() as AnalyticsEvent.ClubSelected
+            assertEquals("DRIVER", event.clubType)
+            assertEquals(500L, event.latencyMs)
+            assertEquals(analytics.getSessionId(), event.sessionId)
+        }
+    }
+
+    @Test
+    fun `logShotLogged captures total latency`() = runTest {
+        analytics.eventStream.test {
+            analytics.logShotLogged(
+                clubType = "IRON_7",
+                lie = "FAIRWAY",
+                totalLatencyMs = 1500L
+            )
+
+            val event = awaitItem() as AnalyticsEvent.ShotLogged
+            assertEquals("IRON_7", event.clubType)
+            assertEquals("FAIRWAY", event.lie)
+            assertEquals(1500L, event.totalLatencyMs)
+            assertEquals(analytics.getSessionId(), event.sessionId)
+        }
+    }
+
+    @Test
+    fun `logShotSynced captures sync latency`() = runTest {
+        analytics.eventStream.test {
+            analytics.logShotSynced(shotId = "shot-123", latencyMs = 300L)
+
+            val event = awaitItem() as AnalyticsEvent.ShotSynced
+            assertEquals("shot-123", event.shotId)
+            assertEquals(300L, event.latencyMs)
+            assertEquals(analytics.getSessionId(), event.sessionId)
+        }
+    }
 }
