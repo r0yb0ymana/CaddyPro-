@@ -66,6 +66,21 @@ sealed class NavCaddyDestination(
     }
 
     /**
+     * Live Caddy HUD screen for on-course strategy.
+     *
+     * Main interface for Live Caddy Mode with:
+     * - Forecaster HUD (weather integration)
+     * - BodyCaddy (readiness scoring)
+     * - PinSeeker AI Map (hole strategy)
+     * - Real-time shot logger
+     *
+     * Spec reference: live-caddy-mode.md R1-R7, live-caddy-mode-plan.md Task 23
+     */
+    data object LiveCaddy : NavCaddyDestination(Module.CADDY, "live_caddy") {
+        override fun toRoute(): String = "caddy/live_caddy"
+    }
+
+    /**
      * Round start screen to initialize a new round.
      * @property courseName Optional course name to preselect
      */
@@ -98,8 +113,36 @@ sealed class NavCaddyDestination(
     }
 
     /**
-     * Round end screen to finalize and review round.
+     * Round end summary screen to finalize and review round.
+     * @property roundId Round identifier to display summary for
      */
+    data class RoundEndSummary(
+        val roundId: Long
+    ) : NavCaddyDestination(Module.CADDY, "round_end_summary") {
+        override fun toRoute(): String = "caddy/round_end_summary/$roundId"
+
+        companion object {
+            /**
+             * Route pattern for navigation graph definition.
+             * Use this in NavHost composable() route parameter.
+             */
+            const val ROUTE_PATTERN = "caddy/round_end_summary/{roundId}"
+
+            /**
+             * Navigation argument key for round ID.
+             */
+            const val ARG_ROUND_ID = "roundId"
+        }
+    }
+
+    /**
+     * Round end screen to finalize round.
+     * Deprecated: Use RoundEndSummary instead.
+     */
+    @Deprecated(
+        message = "Use RoundEndSummary for better round context",
+        replaceWith = ReplaceWith("RoundEndSummary(roundId)")
+    )
     data object RoundEnd : NavCaddyDestination(Module.CADDY, "round_end") {
         override fun toRoute(): String = "caddy/round_end"
     }
@@ -245,11 +288,16 @@ sealed class NavCaddyDestination(
                         lie = target.parameters["lie"] as? String,
                         wind = target.parameters["wind"] as? String
                     )
+                    "live_caddy" -> LiveCaddy
                     "round_start" -> RoundStart(
                         courseName = target.parameters["courseName"] as? String
                     )
                     "score_entry" -> ScoreEntry(
                         hole = (target.parameters["hole"] as? Number)?.toInt()
+                    )
+                    "round_end_summary" -> RoundEndSummary(
+                        roundId = (target.parameters["roundId"] as? Number)?.toLong()
+                            ?: error("roundId required for RoundEndSummary destination")
                     )
                     "round_end" -> RoundEnd
                     "weather" -> WeatherCheck

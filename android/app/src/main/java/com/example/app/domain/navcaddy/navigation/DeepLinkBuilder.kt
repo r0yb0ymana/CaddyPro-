@@ -68,6 +68,14 @@ class DeepLinkBuilder @Inject constructor() {
 
             "round_end" -> NavCaddyDestination.RoundEnd
 
+            "live_caddy" -> NavCaddyDestination.LiveCaddy
+
+            "round_end_summary" -> {
+                val roundId = (target.parameters["roundId"] as? Number)?.toLong()
+                    ?: throw IllegalArgumentException("RoundEndSummary requires roundId parameter")
+                NavCaddyDestination.RoundEndSummary(roundId)
+            }
+
             "weather" -> NavCaddyDestination.WeatherCheck
 
             "stats" -> NavCaddyDestination.StatsLookup(

@@ -28,6 +28,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Deep link support for caddy:// scheme (Task 23) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="caddy" android:host="live_caddy" />
+                <data android:scheme="caddy" android:host="round_end_summary" />
+                <data android:scheme="caddy" android:host="round_start" />
+            </intent-filter>
         </activity>
     </application>
 
