@@ -26,6 +26,7 @@ import com.example.app.domain.navcaddy.models.Club
  * @property weather Current weather conditions (null if unavailable)
  * @property readiness Current readiness score (affects strategy conservatism)
  * @property holeStrategy Personalized hole strategy with hazards (null if unavailable)
+ * @property clubs List of clubs in the active bag for shot logging (empty if no bag active)
  * @property isLoading True while loading context data
  * @property error Error message if context load fails (null if no error)
  * @property settings User's Live Caddy settings for distraction control
@@ -41,6 +42,7 @@ data class LiveCaddyState(
     val weather: WeatherData? = null,
     val readiness: ReadinessScore = ReadinessScore.default(),
     val holeStrategy: HoleStrategy? = null,
+    val clubs: List<Club> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
     val settings: LiveCaddySettings = LiveCaddySettings.default(),
@@ -86,6 +88,13 @@ sealed interface LiveCaddyAction {
      * Spec reference: R3 (BodyCaddy)
      */
     data object RefreshReadiness : LiveCaddyAction
+
+    /**
+     * Show the shot logger UI.
+     *
+     * Spec reference: R6 (Real-Time Shot Logger)
+     */
+    data object ShowShotLogger : LiveCaddyAction
 
     /**
      * Select a club for shot logging.

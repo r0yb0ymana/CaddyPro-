@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import caddypro.analytics.NavCaddyAnalytics
 import caddypro.data.caddy.local.LiveCaddySettingsDataStore
+import caddypro.domain.caddy.repositories.ClubBagRepository
 import caddypro.domain.caddy.usecases.EndRoundUseCase
 import caddypro.domain.caddy.usecases.GetLiveCaddyContextUseCase
 import caddypro.domain.caddy.usecases.LogShotUseCase
@@ -37,6 +38,7 @@ import javax.inject.Inject
  * @property logShot Use case to log shots during the round
  * @property endRound Use case to finalize and save the round
  * @property updateHole Use case to advance to a different hole
+ * @property clubBagRepository Repository for accessing active bag clubs
  * @property settingsDataStore DataStore for persisting settings
  * @property analytics Analytics logger for tracking events
  */
@@ -46,6 +48,7 @@ class LiveCaddyViewModel @Inject constructor(
     private val logShot: LogShotUseCase,
     private val endRound: EndRoundUseCase,
     private val updateHole: UpdateHoleUseCase,
+    private val clubBagRepository: ClubBagRepository,
     private val settingsDataStore: LiveCaddySettingsDataStore,
     private val analytics: NavCaddyAnalytics
 ) : ViewModel() {
@@ -56,6 +59,7 @@ class LiveCaddyViewModel @Inject constructor(
     init {
         loadSettings()
         loadContext()
+        loadClubs()
     }
 
     /**
@@ -70,6 +74,7 @@ class LiveCaddyViewModel @Inject constructor(
             LiveCaddyAction.LoadContext -> loadContext()
             LiveCaddyAction.RefreshWeather -> refreshWeather()
             LiveCaddyAction.RefreshReadiness -> refreshReadiness()
+            LiveCaddyAction.ShowShotLogger -> showShotLogger()
             is LiveCaddyAction.SelectClub -> selectClub(action.club)
             is LiveCaddyAction.LogShot -> logShotAction(action.result)
             LiveCaddyAction.DismissShotLogger -> dismissShotLogger()
@@ -91,6 +96,22 @@ class LiveCaddyViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.getSettings().collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
+            }
+        }
+    }
+
+    /**
+     * Load clubs from active bag.
+     *
+     * Collects clubs from repository and updates UI state.
+     * Used by shot logger for club selection.
+     *
+     * Spec reference: R6 (Real-Time Shot Logger)
+     */
+    private fun loadClubs() {
+        viewModelScope.launch {
+            clubBagRepository.getActiveBagClubs().collect { clubs ->
+                _uiState.update { it.copy(clubs = clubs) }
             }
         }
     }
@@ -175,9 +196,26 @@ class LiveCaddyViewModel @Inject constructor(
     }
 
     /**
+     * Show the shot logger UI.
+     *
+     * Opens the shot logger panel for logging a shot.
+     *
+     * Spec reference: R6 (Real-Time Shot Logger)
+     */
+    private fun showShotLogger() {
+        _uiState.update {
+            it.copy(
+                isShotLoggerVisible = true,
+                selectedClub = null,
+                lastShotConfirmed = false
+            )
+        }
+    }
+
+    /**
      * Select a club for shot logging.
      *
-     * Opens the shot logger UI with the selected club.
+     * Updates the selected club in the shot logger.
      *
      * Spec reference: R6 (Real-Time Shot Logger)
      *
@@ -185,11 +223,7 @@ class LiveCaddyViewModel @Inject constructor(
      */
     private fun selectClub(club: com.example.app.domain.navcaddy.models.Club) {
         _uiState.update {
-            it.copy(
-                selectedClub = club,
-                isShotLoggerVisible = true,
-                lastShotConfirmed = false
-            )
+            it.copy(selectedClub = club)
         }
     }
 
