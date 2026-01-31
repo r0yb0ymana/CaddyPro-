@@ -6,7 +6,7 @@ import caddypro.domain.caddy.models.ReadinessScore
 import caddypro.domain.caddy.models.WeatherData
 import caddypro.domain.caddy.usecases.ShotResult
 import caddypro.domain.navcaddy.context.RoundState
-import com.example.app.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.Club
 
 /**
  * UI state for Live Caddy Mode.
@@ -195,28 +195,4 @@ sealed interface LiveCaddyAction {
     data class UpdateSettings(val settings: LiveCaddySettings) : LiveCaddyAction
 }
 
-/**
- * Extension function to provide default ReadinessScore.
- *
- * Returns a neutral readiness score (70/100) when wearables are unavailable.
- */
-private fun ReadinessScore.Companion.default(): ReadinessScore {
-    return ReadinessScore(
-        overall = 70,
-        breakdown = caddypro.domain.caddy.models.ReadinessBreakdown(
-            hrv = null,
-            sleepQuality = null,
-            stressLevel = null
-        ),
-        timestamp = System.currentTimeMillis(),
-        source = caddypro.domain.caddy.models.ReadinessSource.MANUAL_ENTRY
-    )
-}
-
-/**
- * Companion object for ReadinessScore to support default() extension.
- */
-private val ReadinessScore.Companion: ReadinessScoreCompanion
-    get() = ReadinessScoreCompanion
-
-private object ReadinessScoreCompanion
+// ReadinessScore.default() is now defined in the ReadinessScore companion object

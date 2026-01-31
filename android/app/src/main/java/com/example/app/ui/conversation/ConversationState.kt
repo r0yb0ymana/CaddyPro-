@@ -1,6 +1,6 @@
 package caddypro.ui.conversation
 
-import caddypro.domain.navcaddy.error.RecoveryAction
+import com.example.app.domain.navcaddy.error.RecoveryAction
 import caddypro.domain.navcaddy.models.IntentType
 
 /**

@@ -62,18 +62,17 @@ class LiveCaddyScreenTest {
         // Given: Active round with weather data
         val state = LiveCaddyState(
             roundState = RoundState(
-                roundId = 1L,
-                courseId = 1L,
+                roundId = "round-1",
+                courseName = "Pebble Beach",
                 currentHole = 7,
                 currentPar = 3,
-                shotsOnCurrentHole = 2,
                 totalScore = 8
             ),
             weather = WeatherData(
                 location = Location(37.7749, -122.4194),
-                windSpeed = 12.0,
-                windDirection = 180.0,
-                temperature = 72.0,
+                windSpeedMps = 5.4,
+                windDegrees = 180,
+                temperatureCelsius = 22.0,
                 humidity = 55,
                 timestamp = System.currentTimeMillis()
             ),
@@ -107,11 +106,10 @@ class LiveCaddyScreenTest {
         // Given: Active round with strategy map hidden
         val state = LiveCaddyState(
             roundState = RoundState(
-                roundId = 1L,
-                courseId = 1L,
+                roundId = "round-1",
+                courseName = "Test Course",
                 currentHole = 1,
                 currentPar = 4,
-                shotsOnCurrentHole = 0,
                 totalScore = 0
             ),
             isStrategyMapVisible = false,

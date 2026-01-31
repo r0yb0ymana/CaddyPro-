@@ -23,8 +23,8 @@ import caddypro.domain.caddy.usecases.ShotResult
 import caddypro.domain.navcaddy.models.Lie
 import caddypro.domain.navcaddy.models.MissDirection
 import caddypro.ui.theme.CaddyProTheme
-import com.example.app.domain.navcaddy.models.Club
-import com.example.app.domain.navcaddy.models.ClubType
+import caddypro.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.ClubType
 
 /**
  * Shot Logger component for quick shot logging during a round.

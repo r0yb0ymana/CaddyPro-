@@ -157,7 +157,7 @@ class NavCaddyModelsTest {
 
     @Test
     fun `Shot equality works correctly`() {
-        val club = Club(name = "Driver", type = ClubType.DRIVER)
+        val club = Club(name = "Driver", type = ClubType.DRIVER, estimatedCarry = 250)
         val shot1 = Shot(
             id = "shot-1",
             timestamp = 1234567890L,
@@ -224,7 +224,7 @@ class NavCaddyModelsTest {
         val original = Shot(
             id = "shot-123",
             timestamp = 1700000000L,
-            club = Club(name = "7-iron", type = ClubType.IRON),
+            club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150),
             missDirection = MissDirection.PUSH,
             lie = Lie.FAIRWAY,
             pressureContext = PressureContext(isUserTagged = true),
@@ -248,7 +248,7 @@ class NavCaddyModelsTest {
             intentType = IntentType.CLUB_ADJUSTMENT,
             confidence = 0.92f,
             entities = ExtractedEntities(
-                club = Club(name = "Driver", type = ClubType.DRIVER),
+                club = Club(name = "Driver", type = ClubType.DRIVER, estimatedCarry = 250),
                 yardage = 280
             ),
             userGoal = "Adjust driver distance",
@@ -271,7 +271,7 @@ class NavCaddyModelsTest {
     @Test
     fun `ExtractedEntities serializes and deserializes correctly`() {
         val original = ExtractedEntities(
-            club = Club(name = "9-iron", type = ClubType.IRON),
+            club = Club(name = "9-iron", type = ClubType.IRON, estimatedCarry = 135),
             yardage = 135,
             lie = Lie.ROUGH,
             wind = "10mph headwind",
@@ -293,7 +293,7 @@ class NavCaddyModelsTest {
     fun `MissPattern serializes and deserializes correctly`() {
         val original = MissPattern(
             direction = MissDirection.SLICE,
-            club = Club(name = "Driver", type = ClubType.DRIVER),
+            club = Club(name = "Driver", type = ClubType.DRIVER, estimatedCarry = 250),
             frequency = 8,
             confidence = 0.78f,
             pressureContext = PressureContext(isInferred = true, scoringContext = "tournament"),
@@ -513,7 +513,7 @@ class NavCaddyModelsTest {
 
     @Test
     fun `Club uses default null values for optional fields`() {
-        val club = Club(name = "Driver", type = ClubType.DRIVER)
+        val club = Club(name = "Driver", type = ClubType.DRIVER, estimatedCarry = 250)
         assertEquals(null, club.loft)
         assertEquals(null, club.distance)
     }

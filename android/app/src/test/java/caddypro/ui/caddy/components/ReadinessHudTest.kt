@@ -1,5 +1,6 @@
 package caddypro.ui.caddy.components
 
+import androidx.compose.ui.graphics.Color
 import caddypro.domain.caddy.models.MetricScore
 import caddypro.domain.caddy.models.ReadinessBreakdown
 import caddypro.domain.caddy.models.ReadinessScore

@@ -1,6 +1,7 @@
 package caddypro.domain.navcaddy.offline
 
 import caddypro.domain.navcaddy.clarification.ClarificationResponse
+import caddypro.domain.navcaddy.clarification.IntentSuggestion
 // import caddypro.domain.navcaddy.fallback.LocalIntentSuggestions
 import caddypro.domain.navcaddy.models.ExtractedEntities
 import caddypro.domain.navcaddy.models.IntentType
@@ -29,28 +30,34 @@ class OfflineIntentHandler /* @Inject */ constructor(
     }
 
     fun processOffline(input: String): OfflineResult {
-        val normalizedInput = inputNormalizer.normalize(input).normalized.lowercase()
+        val normalizedInput = inputNormalizer.normalize(input).normalizedInput.lowercase()
         val matches = matchOfflineIntents(normalizedInput)
 
         return when {
             matches.size == 1 && matches.first().score >= STRONG_MATCH_THRESHOLD -> {
                 OfflineResult.Match(
                     parsedIntent = ParsedIntent(
-                        intent = matches.first().intentType,
+                        intentId = java.util.UUID.randomUUID().toString(),
+                        intentType = matches.first().intentType,
                         confidence = matches.first().score,
-                        entities = extractBasicEntities(normalizedInput, matches.first().intentType),
-                        rawInput = input
+                        entities = extractBasicEntities(normalizedInput, matches.first().intentType)
                     )
                 )
             }
 
             matches.isNotEmpty() && matches.first().score >= WEAK_MATCH_THRESHOLD -> {
-                val suggestions = matches.take(3).map { it.intentType }
+                val suggestions = matches.take(3).map { match ->
+                    IntentSuggestion(
+                        intentType = match.intentType,
+                        label = match.intentType.toDisplayName(),
+                        description = match.intentType.toDescription()
+                    )
+                }
                 OfflineResult.Clarify(
                     clarification = ClarificationResponse(
                         message = "I'm offline and need a bit more clarity. Did you mean:",
                         suggestions = suggestions,
-                        confidence = matches.first().score
+                        originalInput = input
                     )
                 )
             }
@@ -127,23 +134,15 @@ class OfflineIntentHandler /* @Inject */ constructor(
     private fun extractBasicEntities(input: String, intentType: IntentType): ExtractedEntities {
         return when (intentType) {
             IntentType.SCORE_ENTRY -> {
-                val score = extractNumber(input)
+                // Score entry uses hole number context
                 ExtractedEntities(
-                    score = score,
-                    hole = extractHoleNumber(input)
+                    holeNumber = extractHoleNumber(input)
                 )
             }
 
             IntentType.CLUB_ADJUSTMENT -> {
                 ExtractedEntities(
-                    club = extractClubName(input),
                     yardage = extractNumber(input)?.toInt()
-                )
-            }
-
-            IntentType.EQUIPMENT_INFO -> {
-                ExtractedEntities(
-                    club = extractClubName(input)
                 )
             }
 
@@ -291,6 +290,22 @@ class OfflineIntentHandler /* @Inject */ constructor(
                 "bug" to 0.8f,
                 "suggestion" to 0.8f
             )
+
+            IntentType.BAILOUT_QUERY -> listOf(
+                "bailout" to 1.0f,
+                "safe" to 0.8f,
+                "trouble" to 0.7f,
+                "escape" to 0.8f,
+                "recovery" to 0.6f
+            )
+
+            IntentType.READINESS_CHECK -> listOf(
+                "readiness" to 1.0f,
+                "ready" to 0.9f,
+                "feel" to 0.6f,
+                "energy" to 0.8f,
+                "fatigue" to 0.8f
+            )
         }
     }
 
@@ -303,4 +318,50 @@ class OfflineIntentHandler /* @Inject */ constructor(
         private const val STRONG_MATCH_THRESHOLD = 0.7f
         private const val WEAK_MATCH_THRESHOLD = 0.4f
     }
+}
+
+/**
+ * Extension function to get display name for IntentType.
+ */
+private fun IntentType.toDisplayName(): String = when (this) {
+    IntentType.CLUB_ADJUSTMENT -> "Adjust Club"
+    IntentType.RECOVERY_CHECK -> "Check Recovery"
+    IntentType.SHOT_RECOMMENDATION -> "Shot Advice"
+    IntentType.SCORE_ENTRY -> "Enter Score"
+    IntentType.PATTERN_QUERY -> "View Patterns"
+    IntentType.DRILL_REQUEST -> "Practice Drill"
+    IntentType.WEATHER_CHECK -> "Check Weather"
+    IntentType.STATS_LOOKUP -> "View Stats"
+    IntentType.ROUND_START -> "Start Round"
+    IntentType.ROUND_END -> "End Round"
+    IntentType.EQUIPMENT_INFO -> "Equipment Info"
+    IntentType.COURSE_INFO -> "Course Info"
+    IntentType.SETTINGS_CHANGE -> "Settings"
+    IntentType.HELP_REQUEST -> "Help"
+    IntentType.FEEDBACK -> "Feedback"
+    IntentType.BAILOUT_QUERY -> "Bailout Zone"
+    IntentType.READINESS_CHECK -> "Check Readiness"
+}
+
+/**
+ * Extension function to get description for IntentType.
+ */
+private fun IntentType.toDescription(): String = when (this) {
+    IntentType.CLUB_ADJUSTMENT -> "Adjust club distances or selection"
+    IntentType.RECOVERY_CHECK -> "Check your recovery status"
+    IntentType.SHOT_RECOMMENDATION -> "Get shot recommendations"
+    IntentType.SCORE_ENTRY -> "Enter or update your score"
+    IntentType.PATTERN_QUERY -> "View your miss patterns"
+    IntentType.DRILL_REQUEST -> "Get practice drill suggestions"
+    IntentType.WEATHER_CHECK -> "Check weather conditions"
+    IntentType.STATS_LOOKUP -> "View your golf statistics"
+    IntentType.ROUND_START -> "Start a new round"
+    IntentType.ROUND_END -> "Complete current round"
+    IntentType.EQUIPMENT_INFO -> "View equipment information"
+    IntentType.COURSE_INFO -> "Get course information"
+    IntentType.SETTINGS_CHANGE -> "Change app settings"
+    IntentType.HELP_REQUEST -> "Get help using the app"
+    IntentType.FEEDBACK -> "Provide feedback"
+    IntentType.BAILOUT_QUERY -> "Find safe bailout zones"
+    IntentType.READINESS_CHECK -> "Check your readiness score"
 }

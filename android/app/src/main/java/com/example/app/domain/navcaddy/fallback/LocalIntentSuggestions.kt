@@ -1,7 +1,7 @@
 package com.example.app.domain.navcaddy.fallback
 
-import com.example.app.domain.navcaddy.models.IntentType
-import com.example.app.domain.navcaddy.models.Module
+import caddypro.domain.navcaddy.models.IntentType
+import caddypro.domain.navcaddy.models.Module
 import javax.inject.Inject
 import javax.inject.Singleton
 

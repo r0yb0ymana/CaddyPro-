@@ -1,9 +1,9 @@
 package caddypro.data.navcaddy.repository
 
-import com.example.app.domain.navcaddy.models.BagProfile
-import com.example.app.domain.navcaddy.models.Club
-import com.example.app.domain.navcaddy.models.DistanceAuditEntry
-import com.example.app.domain.navcaddy.models.MissBias
+import caddypro.domain.navcaddy.models.BagProfile
+import caddypro.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.DistanceAuditEntry
+import caddypro.domain.navcaddy.models.MissBias
 import caddypro.domain.navcaddy.models.ConversationTurn
 import caddypro.domain.navcaddy.models.MissPattern
 import caddypro.domain.navcaddy.models.SessionContext

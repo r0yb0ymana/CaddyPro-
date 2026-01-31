@@ -5,8 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import caddypro.ui.theme.CaddyProTheme
-import com.example.app.domain.navcaddy.models.Club
-import com.example.app.domain.navcaddy.models.ClubType
+import caddypro.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.ClubType
 import org.junit.Rule
 import org.junit.Test
 

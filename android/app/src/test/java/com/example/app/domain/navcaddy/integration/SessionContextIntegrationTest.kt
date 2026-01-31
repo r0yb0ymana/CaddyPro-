@@ -40,7 +40,8 @@ class SessionContextIntegrationTest {
     private val testClub = Club(
         id = "7-iron-id",
         name = "7-iron",
-        type = ClubType.IRON
+        type = ClubType.IRON,
+        estimatedCarry = 150
     )
 
     @Before
@@ -493,7 +494,7 @@ class SessionContextIntegrationTest {
         val shot = Shot(
             id = UUID.randomUUID().toString(),
             timestamp = System.currentTimeMillis(),
-            club = Club("6-iron-id", "6-iron", ClubType.IRON),
+            club = Club(id = "6-iron-id", name = "6-iron", type = ClubType.IRON, estimatedCarry = 160),
             missDirection = MissDirection.SLICE,
             lie = Lie.FAIRWAY,
             pressureContext = PressureContext()

@@ -1,4 +1,4 @@
-package com.example.app.domain.navcaddy.models
+package caddypro.domain.navcaddy.models
 
 /**
  * Enum representing dominant miss direction for club bias.

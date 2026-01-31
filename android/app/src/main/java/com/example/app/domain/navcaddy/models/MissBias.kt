@@ -1,4 +1,4 @@
-package com.example.app.domain.navcaddy.models
+package caddypro.domain.navcaddy.models
 
 import com.google.gson.annotations.SerializedName
 

@@ -18,8 +18,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import caddypro.ui.theme.CaddyProTheme
-import com.example.app.domain.navcaddy.models.Club
-import com.example.app.domain.navcaddy.models.ClubType
+import caddypro.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.ClubType
 
 /**
  * Club selector grid for shot logging.

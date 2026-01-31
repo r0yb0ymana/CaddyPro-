@@ -177,11 +177,10 @@ private fun LiveCaddyTopBarActiveRoundPreview() {
     CaddyProTheme {
         LiveCaddyTopBar(
             roundState = RoundState(
-                roundId = 1L,
-                courseId = 1L,
+                roundId = "round-1",
+                courseName = "Pebble Beach",
                 currentHole = 7,
                 currentPar = 3,
-                shotsOnCurrentHole = 2,
                 totalScore = 8
             ),
             onNavigateBack = {},

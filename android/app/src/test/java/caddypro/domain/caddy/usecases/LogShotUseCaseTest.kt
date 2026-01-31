@@ -7,7 +7,7 @@ import caddypro.domain.navcaddy.models.ClubType
 import caddypro.domain.navcaddy.models.Lie
 import caddypro.domain.navcaddy.models.MissDirection
 import caddypro.domain.navcaddy.models.Shot
-import com.example.app.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.Club
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

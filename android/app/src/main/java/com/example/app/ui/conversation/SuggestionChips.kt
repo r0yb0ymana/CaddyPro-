@@ -56,18 +56,14 @@ private fun SuggestionChip(
 ) {
     AssistChip(
         onClick = onClick,
-        label = {
-            Text(
-                text = suggestion.label,
-                style = MaterialTheme.typography.labelLarge
-            )
-        },
+        label = { Text(text = suggestion.label) },
         colors = AssistChipDefaults.assistChipColors(
             containerColor = MaterialTheme.colorScheme.surface,
             labelColor = MaterialTheme.colorScheme.onSurface
         ),
         border = AssistChipDefaults.assistChipBorder(
-            borderColor = MaterialTheme.colorScheme.outline
+            borderColor = MaterialTheme.colorScheme.outline,
+            enabled = true
         ),
         modifier = modifier
     )

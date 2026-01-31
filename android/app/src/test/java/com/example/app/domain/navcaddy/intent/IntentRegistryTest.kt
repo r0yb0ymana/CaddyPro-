@@ -166,7 +166,7 @@ class IntentRegistryTest {
 
     @Test
     fun `validateEntities returns Valid when all required entities present`() {
-        val club = Club(name = "7-iron", type = ClubType.IRON)
+        val club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150)
         val entities = ExtractedEntities(club = club)
 
         val result = IntentRegistry.validateEntities(
@@ -205,7 +205,7 @@ class IntentRegistryTest {
 
     @Test
     fun `validateEntities handles optional entities correctly`() {
-        val club = Club(name = "7-iron", type = ClubType.IRON)
+        val club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150)
         val entities = ExtractedEntities(club = club, yardage = 150)
 
         // CLUB_ADJUSTMENT requires CLUB, yardage is optional
@@ -306,7 +306,7 @@ class IntentRegistryTest {
 
     @Test
     fun `validateEntities correctly identifies all entity types`() {
-        val club = Club(name = "7-iron", type = ClubType.IRON)
+        val club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150)
         val entities = ExtractedEntities(
             club = club,
             yardage = 150,

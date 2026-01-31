@@ -46,8 +46,8 @@ import caddypro.ui.caddy.components.ReadinessHud
 import caddypro.ui.caddy.components.ShotConfirmationToast
 import caddypro.ui.caddy.components.ShotLogger
 import caddypro.ui.theme.CaddyProTheme
-import com.example.app.ui.components.ErrorView
-import com.example.app.ui.components.LoadingView
+import caddypro.ui.components.ErrorView
+import caddypro.ui.components.LoadingView
 
 /**
  * Main Live Caddy Mode screen.
@@ -407,18 +407,17 @@ private fun LiveCaddyScreenActivePreview() {
         LiveCaddyContent(
             state = LiveCaddyState(
                 roundState = RoundState(
-                    roundId = 1L,
-                    courseId = 1L,
+                    roundId = "1",
+                    courseName = "Pebble Beach",
                     currentHole = 1,
                     currentPar = 4,
-                    shotsOnCurrentHole = 0,
                     totalScore = 0
                 ),
                 weather = WeatherData(
                     location = Location(37.7749, -122.4194),
-                    windSpeed = 12.0,
-                    windDirection = 180.0,
-                    temperature = 72.0,
+                    windSpeedMps = 5.4,
+                    windDegrees = 180,
+                    temperatureCelsius = 22.0,
                     humidity = 55,
                     timestamp = System.currentTimeMillis()
                 ),

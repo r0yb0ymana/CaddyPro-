@@ -2,15 +2,15 @@ package caddypro.ui.conversation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import caddypro.analytics.AnalyticsEvent
 import caddypro.analytics.NavCaddyAnalytics
+import caddypro.analytics.AnalyticsEvent
 import caddypro.domain.navcaddy.classifier.ClassificationResult
 import caddypro.domain.navcaddy.classifier.IntentClassifier
 import caddypro.domain.navcaddy.context.SessionContextManager
-import caddypro.domain.navcaddy.error.ErrorContext
-import caddypro.domain.navcaddy.error.NavCaddyError
-// import caddypro.domain.navcaddy.error.NavCaddyErrorHandler
-import caddypro.domain.navcaddy.error.RecoveryAction
+import com.example.app.domain.navcaddy.error.ErrorContext
+import com.example.app.domain.navcaddy.error.NavCaddyError
+import com.example.app.domain.navcaddy.error.NavCaddyErrorHandler
+import com.example.app.domain.navcaddy.error.RecoveryAction
 // import caddypro.domain.navcaddy.fallback.LocalIntentSuggestions
 import caddypro.domain.navcaddy.models.IntentType
 import caddypro.domain.navcaddy.navigation.NavCaddyNavigator
@@ -87,13 +87,7 @@ class ConversationViewModel /* @Inject */ constructor(
                 } else if (isOnline && wasOffline) {
                     addAssistantMessage(OfflineCapability.getOnlineModeMessage())
                     hideFallbackSuggestions()
-
-                    analytics.logEvent(
-                        AnalyticsEvent.Custom(
-                            eventName = "network_reconnected",
-                            parameters = emptyMap()
-                        )
-                    )
+                    // Network reconnected - no custom event needed
                 }
             }
         }
@@ -210,8 +204,8 @@ class ConversationViewModel /* @Inject */ constructor(
                 when (classificationResult) {
                     is ClassificationResult.Route -> {
                         analytics.logIntentClassified(
-                            intent = classificationResult.parsedIntent.intent.name,
-                            confidence = classificationResult.parsedIntent.confidence,
+                            intent = classificationResult.intent.intentType.name,
+                            confidence = classificationResult.intent.confidence,
                             latencyMs = classificationLatency,
                             wasSuccessful = true
                         )
@@ -220,8 +214,8 @@ class ConversationViewModel /* @Inject */ constructor(
 
                     is ClassificationResult.Confirm -> {
                         analytics.logIntentClassified(
-                            intent = classificationResult.parsedIntent.intent.name,
-                            confidence = classificationResult.parsedIntent.confidence,
+                            intent = classificationResult.intent.intentType.name,
+                            confidence = classificationResult.intent.confidence,
                             latencyMs = classificationLatency,
                             wasSuccessful = true
                         )
@@ -285,28 +279,35 @@ class ConversationViewModel /* @Inject */ constructor(
             when (result) {
                 is OfflineIntentHandler.OfflineResult.Match -> {
                     analytics.logIntentClassified(
-                        intent = result.parsedIntent.intent.name,
+                        intent = result.parsedIntent.intentType.name,
                         confidence = result.parsedIntent.confidence,
                         latencyMs = latency,
                         wasSuccessful = true
                     )
 
-                    val routeResult = ClassificationResult.Route(result.parsedIntent)
-                    handleRouteClassification(routeResult)
+                    // For offline matches, handle directly without routing
+                    handleOfflineMatchResult(result.parsedIntent)
                 }
 
                 is OfflineIntentHandler.OfflineResult.Clarify -> {
                     analytics.logClarificationRequested(
                         originalInput = input,
-                        confidence = result.clarification.confidence,
+                        confidence = 0f, // Offline doesn't track confidence at clarification level
                         suggestionsCount = result.clarification.suggestions.size
                     )
 
-                    val clarifyResult = ClassificationResult.Clarify(
+                    // Convert IntentSuggestion list to suggestions format for UI
+                    val suggestions = result.clarification.suggestions.map { intentSuggestion ->
+                        ClarificationSuggestion(
+                            intentType = intentSuggestion.intentType,
+                            label = intentSuggestion.label,
+                            description = intentSuggestion.description
+                        )
+                    }
+                    addClarificationMessage(
                         message = result.clarification.message,
-                        suggestions = result.clarification.suggestions
+                        suggestions = suggestions
                     )
-                    handleClarifyClassification(clarifyResult)
                 }
 
                 is OfflineIntentHandler.OfflineResult.RequiresOnline -> {
@@ -350,7 +351,7 @@ class ConversationViewModel /* @Inject */ constructor(
                     module = routingResult.target.module.name,
                     screen = routingResult.target.screen,
                     latencyMs = routingLatency,
-                    parameters = routingResult.target.parameters
+                    parameters = routingResult.target.parameters.mapValues { it.value.toString() }
                 )
 
                 navigator.navigate(
@@ -377,6 +378,24 @@ class ConversationViewModel /* @Inject */ constructor(
 
     private fun handleConfirmClassification(result: ClassificationResult.Confirm) {
         addAssistantMessage(result.message)
+    }
+
+    /**
+     * Handle offline match result by providing a response based on intent type.
+     */
+    private fun handleOfflineMatchResult(parsedIntent: caddypro.domain.navcaddy.models.ParsedIntent) {
+        val intentType = parsedIntent.intentType
+        val response = when (intentType) {
+            IntentType.SCORE_ENTRY -> "Ready to enter your score. Use the scorecard below."
+            IntentType.STATS_LOOKUP -> "Here are your offline stats. Some data may not be current."
+            IntentType.EQUIPMENT_INFO -> "Here's your equipment info from local storage."
+            IntentType.ROUND_START -> "Starting a new round. I'll sync when you're back online."
+            IntentType.ROUND_END -> "Ending your round. Results will sync when online."
+            IntentType.SETTINGS_CHANGE -> "Opening settings."
+            IntentType.HELP_REQUEST -> "Here's what I can help with while offline."
+            else -> "I understood you. Let me help with that."
+        }
+        addAssistantMessage(response)
     }
 
     private fun handleClarifyClassification(result: ClassificationResult.Clarify) {
@@ -695,6 +714,8 @@ private val IntentType.displayName: String
         IntentType.SETTINGS_CHANGE -> "Settings"
         IntentType.HELP_REQUEST -> "Help"
         IntentType.FEEDBACK -> "Feedback"
+        IntentType.BAILOUT_QUERY -> "Bailout Zone"
+        IntentType.READINESS_CHECK -> "Check Readiness"
     }
 
 private val IntentType.description: String
@@ -714,4 +735,6 @@ private val IntentType.description: String
         IntentType.SETTINGS_CHANGE -> "Change app settings"
         IntentType.HELP_REQUEST -> "Get help using the app"
         IntentType.FEEDBACK -> "Provide feedback"
+        IntentType.BAILOUT_QUERY -> "Find safe bailout zones"
+        IntentType.READINESS_CHECK -> "Check your readiness score"
     }

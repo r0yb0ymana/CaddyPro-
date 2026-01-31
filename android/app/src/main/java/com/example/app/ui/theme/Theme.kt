@@ -43,3 +43,13 @@ fun AppTheme(
         content = content
     )
 }
+
+/**
+ * Alias for AppTheme for use in previews and tests.
+ */
+@Composable
+fun CaddyProTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
+) = AppTheme(darkTheme, dynamicColor, content)

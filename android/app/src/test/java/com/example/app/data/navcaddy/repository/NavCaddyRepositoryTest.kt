@@ -32,7 +32,7 @@ class NavCaddyRepositoryTest {
     private lateinit var database: NavCaddyDatabase
     private lateinit var repository: NavCaddyRepositoryImpl
 
-    private val testClub = Club(id = "club-7i", name = "7-iron", type = ClubType.IRON)
+    private val testClub = Club(id = "club-7i", name = "7-iron", type = ClubType.IRON, estimatedCarry = 150)
     private val testShot = Shot(
         id = "shot-1",
         timestamp = System.currentTimeMillis(),

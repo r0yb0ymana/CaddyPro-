@@ -2,7 +2,6 @@ package caddypro.ui.caddy
 
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import caddypro.domain.caddy.models.HazardLocation
 import caddypro.domain.caddy.models.HazardType
 import caddypro.domain.caddy.models.HazardZone
@@ -35,59 +34,67 @@ private fun LiveCaddyScreenFullPreview() {
         LiveCaddyContent(
             state = LiveCaddyState(
                 roundState = RoundState(
-                    roundId = 1L,
-                    courseId = 1L,
+                    roundId = "round-1",
+                    courseName = "Pebble Beach",
                     currentHole = 7,
                     currentPar = 3,
-                    shotsOnCurrentHole = 1,
                     totalScore = 8
                 ),
                 weather = WeatherData(
                     location = Location(37.7749, -122.4194),
-                    windSpeed = 15.0,
-                    windDirection = 225.0,
-                    temperature = 68.0,
+                    windSpeedMps = 6.7,
+                    windDegrees = 225,
+                    temperatureCelsius = 20.0,
                     humidity = 65,
                     timestamp = System.currentTimeMillis()
                 ),
                 readiness = ReadinessScore(
                     overall = 75,
                     breakdown = ReadinessBreakdown(
-                        hrv = MetricScore(value = 80, trend = 0),
-                        sleepQuality = MetricScore(value = 70, trend = -5),
-                        stressLevel = MetricScore(value = 75, trend = 2)
+                        hrv = MetricScore(value = 80.0, weight = 0.4),
+                        sleepQuality = MetricScore(value = 70.0, weight = 0.4),
+                        stressLevel = MetricScore(value = 75.0, weight = 0.2)
                     ),
                     timestamp = System.currentTimeMillis(),
                     source = ReadinessSource.WEARABLE_SYNC
                 ),
                 holeStrategy = HoleStrategy(
                     holeNumber = 7,
-                    par = 3,
-                    hazardZones = listOf(
+                    dangerZones = listOf(
                         HazardZone(
                             type = HazardType.WATER,
-                            location = HazardLocation.FRONT_RIGHT,
-                            description = "Water hazard guarding front right of green"
+                            location = HazardLocation(
+                                side = "right",
+                                distanceFromTee = 130..160
+                            ),
+                            penaltyStrokes = 1.0,
+                            affectedMisses = listOf(MissDirection.RIGHT)
                         ),
                         HazardZone(
                             type = HazardType.BUNKER,
-                            location = HazardLocation.LEFT,
-                            description = "Deep bunker left of green"
+                            location = HazardLocation(
+                                side = "left",
+                                distanceFromTee = 140..155
+                            ),
+                            penaltyStrokes = 0.5,
+                            affectedMisses = listOf(MissDirection.LEFT)
                         )
                     ),
                     recommendedLandingZone = LandingZone(
-                        targetYardage = 155,
+                        targetLine = 180,
+                        idealDistance = 142,
                         safetyMargin = 10,
-                        aimPoint = "Center of green"
+                        visualCue = "Center of green"
                     ),
                     riskCallouts = listOf(
                         "Right miss brings water into play",
                         "Wind is cross-left to right - aim 5 yards left"
                     ),
-                    personalizationContext = PersonalizationContext(
+                    personalizedFor = PersonalizationContext(
                         handicap = 9,
                         dominantMiss = MissDirection.RIGHT,
-                        readinessAdjustment = "Normal strategy (readiness 75/100)"
+                        clubDistances = mapOf("7i" to 140, "8i" to 130, "PW" to 110),
+                        readinessScore = 75
                     )
                 ),
                 isLoading = false,
@@ -108,27 +115,26 @@ private fun LiveCaddyScreenStrategyHiddenPreview() {
         LiveCaddyContent(
             state = LiveCaddyState(
                 roundState = RoundState(
-                    roundId = 1L,
-                    courseId = 1L,
+                    roundId = "round-2",
+                    courseName = "Augusta National",
                     currentHole = 14,
                     currentPar = 5,
-                    shotsOnCurrentHole = 2,
                     totalScore = 15
                 ),
                 weather = WeatherData(
                     location = Location(37.7749, -122.4194),
-                    windSpeed = 8.0,
-                    windDirection = 90.0,
-                    temperature = 75.0,
+                    windSpeedMps = 3.6,
+                    windDegrees = 90,
+                    temperatureCelsius = 24.0,
                     humidity = 50,
                     timestamp = System.currentTimeMillis()
                 ),
                 readiness = ReadinessScore(
                     overall = 85,
                     breakdown = ReadinessBreakdown(
-                        hrv = MetricScore(value = 85, trend = 3),
-                        sleepQuality = MetricScore(value = 88, trend = 5),
-                        stressLevel = MetricScore(value = 82, trend = 0)
+                        hrv = MetricScore(value = 85.0, weight = 0.4),
+                        sleepQuality = MetricScore(value = 88.0, weight = 0.4),
+                        stressLevel = MetricScore(value = 82.0, weight = 0.2)
                     ),
                     timestamp = System.currentTimeMillis(),
                     source = ReadinessSource.WEARABLE_SYNC
@@ -151,27 +157,26 @@ private fun LiveCaddyScreenExpandedHudsPreview() {
         LiveCaddyContent(
             state = LiveCaddyState(
                 roundState = RoundState(
-                    roundId = 1L,
-                    courseId = 1L,
+                    roundId = "round-3",
+                    courseName = "St Andrews",
                     currentHole = 1,
                     currentPar = 4,
-                    shotsOnCurrentHole = 0,
                     totalScore = 0
                 ),
                 weather = WeatherData(
                     location = Location(37.7749, -122.4194),
-                    windSpeed = 20.0,
-                    windDirection = 180.0,
-                    temperature = 65.0,
+                    windSpeedMps = 8.9,
+                    windDegrees = 180,
+                    temperatureCelsius = 18.0,
                     humidity = 70,
                     timestamp = System.currentTimeMillis()
                 ),
                 readiness = ReadinessScore(
                     overall = 60,
                     breakdown = ReadinessBreakdown(
-                        hrv = MetricScore(value = 55, trend = -10),
-                        sleepQuality = MetricScore(value = 62, trend = -8),
-                        stressLevel = MetricScore(value = 63, trend = 5)
+                        hrv = MetricScore(value = 55.0, weight = 0.4),
+                        sleepQuality = MetricScore(value = 62.0, weight = 0.4),
+                        stressLevel = MetricScore(value = 63.0, weight = 0.2)
                     ),
                     timestamp = System.currentTimeMillis(),
                     source = ReadinessSource.WEARABLE_SYNC

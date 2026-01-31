@@ -1,6 +1,6 @@
 package com.example.app.domain.navcaddy.error
 
-import com.example.app.domain.navcaddy.models.IntentType
+import caddypro.domain.navcaddy.models.IntentType
 
 /**
  * Defines recovery strategies for different error types.

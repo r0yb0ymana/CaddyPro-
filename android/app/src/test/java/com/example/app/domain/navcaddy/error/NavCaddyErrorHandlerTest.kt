@@ -1,6 +1,6 @@
 package com.example.app.domain.navcaddy.error
 
-import com.example.app.domain.navcaddy.models.IntentType
+import caddypro.domain.navcaddy.models.IntentType
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test

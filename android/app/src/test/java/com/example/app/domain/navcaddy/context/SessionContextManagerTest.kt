@@ -148,7 +148,7 @@ class SessionContextManagerTest {
         val shot = Shot(
             id = "shot-1",
             timestamp = System.currentTimeMillis(),
-            club = Club(name = "7-iron", type = ClubType.IRON, number = 7),
+            club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150),
             lie = Lie.FAIRWAY,
             pressureContext = PressureContext.NORMAL
         )
@@ -415,7 +415,7 @@ class SessionContextManagerTest {
             val shot = Shot(
                 id = "shot-1",
                 timestamp = System.currentTimeMillis(),
-                club = Club(name = "9-iron", type = ClubType.IRON, number = 9),
+                club = Club(name = "9-iron", type = ClubType.IRON, estimatedCarry = 135),
                 lie = Lie.FAIRWAY,
                 pressureContext = PressureContext.PRESSURE
             )

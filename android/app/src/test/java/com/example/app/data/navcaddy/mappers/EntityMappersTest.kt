@@ -74,7 +74,7 @@ class EntityMappersTest {
         val shot = Shot(
             id = "shot-456",
             timestamp = 9876543210L,
-            club = Club(id = "club-pw", name = "PW", type = ClubType.WEDGE),
+            club = Club(id = "club-pw", name = "PW", type = ClubType.WEDGE, estimatedCarry = 120),
             missDirection = MissDirection.FAT,
             lie = Lie.ROUGH,
             pressureContext = PressureContext(
@@ -110,7 +110,7 @@ class EntityMappersTest {
         val originalShot = Shot(
             id = "shot-roundtrip",
             timestamp = 1111111111L,
-            club = Club(id = "club-driver", name = "Driver", type = ClubType.DRIVER),
+            club = Club(id = "club-driver", name = "Driver", type = ClubType.DRIVER, estimatedCarry = 250),
             missDirection = null,
             lie = Lie.TEE,
             pressureContext = PressureContext(),
@@ -198,7 +198,7 @@ class EntityMappersTest {
         val pattern = MissPattern(
             id = "pattern-789",
             direction = MissDirection.PULL,
-            club = Club(id = "club-5i", name = "5-iron", type = ClubType.IRON),
+            club = Club(id = "club-5i", name = "5-iron", type = ClubType.IRON, estimatedCarry = 175),
             frequency = 12,
             confidence = 0.72f,
             pressureContext = PressureContext(isUserTagged = false, isInferred = true),

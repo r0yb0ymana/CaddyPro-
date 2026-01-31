@@ -1,7 +1,7 @@
 package caddypro.domain.caddy.repositories
 
-import com.example.app.domain.navcaddy.models.BagProfile
-import com.example.app.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.BagProfile
+import caddypro.domain.navcaddy.models.Club
 import kotlinx.coroutines.flow.Flow
 
 /**

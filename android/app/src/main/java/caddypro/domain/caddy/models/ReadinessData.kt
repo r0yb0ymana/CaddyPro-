@@ -36,6 +36,23 @@ data class ReadinessScore(
         require(timestamp > 0) { "Timestamp must be positive" }
     }
 
+    companion object {
+        /**
+         * Create a default ReadinessScore when no data is available.
+         * Uses neutral values (70/100) to indicate "good" readiness.
+         */
+        fun default(): ReadinessScore = ReadinessScore(
+            overall = 70,
+            breakdown = ReadinessBreakdown(
+                hrv = null,
+                sleepQuality = null,
+                stressLevel = null
+            ),
+            timestamp = System.currentTimeMillis(),
+            source = ReadinessSource.MANUAL_ENTRY
+        )
+    }
+
     /**
      * Check if readiness is below a threshold.
      *

@@ -53,7 +53,7 @@ class ContextInjectorTest {
         val shot = Shot(
             id = "shot-1",
             timestamp = System.currentTimeMillis(),
-            club = Club(name = "7-iron", type = ClubType.IRON, number = 7),
+            club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150),
             missDirection = MissDirection.PUSH_RIGHT,
             lie = Lie.FAIRWAY,
             pressureContext = PressureContext.PRESSURE
@@ -101,7 +101,7 @@ class ContextInjectorTest {
         val shot = Shot(
             id = "shot-1",
             timestamp = System.currentTimeMillis(),
-            club = Club(name = "PW", type = ClubType.WEDGE, number = 10),
+            club = Club(name = "PW", type = ClubType.WEDGE, estimatedCarry = 110),
             lie = Lie.ROUGH,
             pressureContext = PressureContext.NORMAL
         )
@@ -162,7 +162,7 @@ class ContextInjectorTest {
         val shot = Shot(
             id = "shot-1",
             timestamp = System.currentTimeMillis(),
-            club = Club(name = "Driver", type = ClubType.DRIVER, number = 1),
+            club = Club(name = "Driver", type = ClubType.DRIVER, estimatedCarry = 250),
             lie = Lie.TEE,
             pressureContext = PressureContext.NORMAL
         )
@@ -186,7 +186,7 @@ class ContextInjectorTest {
         val shot = Shot(
             id = "shot-1",
             timestamp = System.currentTimeMillis(),
-            club = Club(name = "5-iron", type = ClubType.IRON, number = 5),
+            club = Club(name = "5-iron", type = ClubType.IRON, estimatedCarry = 170),
             missDirection = MissDirection.SLICE,
             lie = Lie.ROUGH,
             pressureContext = PressureContext.NORMAL

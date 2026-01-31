@@ -4,8 +4,8 @@ import caddypro.domain.caddy.models.LiveCaddySettings
 import caddypro.domain.caddy.usecases.ShotResult
 import caddypro.domain.navcaddy.context.RoundState
 import caddypro.domain.navcaddy.models.Lie
-import com.example.app.domain.navcaddy.models.Club
-import com.example.app.domain.navcaddy.models.ClubType
+import caddypro.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.ClubType
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

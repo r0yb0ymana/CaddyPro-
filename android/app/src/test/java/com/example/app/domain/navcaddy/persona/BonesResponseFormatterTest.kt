@@ -106,7 +106,7 @@ class BonesResponseFormatterTest {
                 direction = MissDirection.PUSH,
                 frequency = 8,
                 confidence = 0.75f,
-                club = Club(name = "7-iron", type = ClubType.IRON),
+                club = Club(name = "7-iron", type = ClubType.IRON, estimatedCarry = 150),
                 lastOccurrence = System.currentTimeMillis()
             )
         )
@@ -164,7 +164,7 @@ class BonesResponseFormatterTest {
                 direction = MissDirection.SLICE,
                 frequency = 8,
                 confidence = 0.8f,
-                club = Club(name = "driver", type = ClubType.DRIVER),
+                club = Club(name = "driver", type = ClubType.DRIVER, estimatedCarry = 250),
                 lastOccurrence = System.currentTimeMillis()
             )
         )
@@ -465,7 +465,7 @@ class BonesResponseFormatterTest {
                 direction = MissDirection.SLICE,
                 frequency = 10,
                 confidence = 0.85f,
-                club = Club(name = "driver", type = ClubType.DRIVER),
+                club = Club(name = "driver", type = ClubType.DRIVER, estimatedCarry = 250),
                 pressureContext = PressureContext(isUserTagged = true),
                 lastOccurrence = System.currentTimeMillis()
             )

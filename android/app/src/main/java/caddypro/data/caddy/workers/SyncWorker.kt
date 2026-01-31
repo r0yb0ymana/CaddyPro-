@@ -78,7 +78,7 @@ class SyncWorker @AssistedInject constructor(
                         // Track successful sync latency
                         val syncLatency = System.currentTimeMillis() - syncStartTime
                         analytics.logShotSynced(
-                            shotId = operation.id,
+                            shotId = operation.id.toString(),
                             latencyMs = syncLatency
                         )
 

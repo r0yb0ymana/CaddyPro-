@@ -6,7 +6,7 @@ import caddypro.domain.navcaddy.models.Lie
 import caddypro.domain.navcaddy.models.MissDirection
 import caddypro.domain.navcaddy.models.PressureContext
 import caddypro.domain.navcaddy.models.Shot
-import com.example.app.domain.navcaddy.models.Club
+import caddypro.domain.navcaddy.models.Club
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
