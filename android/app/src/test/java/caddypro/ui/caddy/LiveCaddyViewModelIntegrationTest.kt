@@ -409,7 +409,7 @@ class LiveCaddyViewModelIntegrationTest {
 
         // When: User logs a shot while offline
         val club = createTestClub("7-iron")
-        val shotResult = ShotResult(lie = Lie.ROUGH, missDirection = MissDirection.LEFT)
+        val shotResult = ShotResult(lie = Lie.ROUGH, missDirection = MissDirection.HOOK)
         coEvery { logShot(club, shotResult) } returns Result.success(Unit)
 
         viewModel.onAction(LiveCaddyAction.ShowShotLogger)

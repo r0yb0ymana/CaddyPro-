@@ -117,7 +117,7 @@ private fun HazardZoneIndicatorWaterPreview() {
                 type = HazardType.WATER,
                 location = HazardLocation("right", 180..220),
                 penaltyStrokes = 1.0,
-                affectedMisses = listOf(MissDirection.RIGHT)
+                affectedMisses = listOf(MissDirection.SLICE)
             ),
             modifier = Modifier.padding(16.dp)
         )
@@ -133,7 +133,7 @@ private fun HazardZoneIndicatorOBPreview() {
                 type = HazardType.OB,
                 location = HazardLocation("left", 200..250),
                 penaltyStrokes = 2.0,
-                affectedMisses = listOf(MissDirection.LEFT)
+                affectedMisses = listOf(MissDirection.HOOK)
             ),
             modifier = Modifier.padding(16.dp)
         )

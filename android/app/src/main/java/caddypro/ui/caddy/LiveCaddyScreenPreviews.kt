@@ -68,7 +68,7 @@ private fun LiveCaddyScreenFullPreview() {
                                 distanceFromTee = 130..160
                             ),
                             penaltyStrokes = 1.0,
-                            affectedMisses = listOf(MissDirection.RIGHT)
+                            affectedMisses = listOf(MissDirection.SLICE)
                         ),
                         HazardZone(
                             type = HazardType.BUNKER,
@@ -77,7 +77,7 @@ private fun LiveCaddyScreenFullPreview() {
                                 distanceFromTee = 140..155
                             ),
                             penaltyStrokes = 0.5,
-                            affectedMisses = listOf(MissDirection.LEFT)
+                            affectedMisses = listOf(MissDirection.HOOK)
                         )
                     ),
                     recommendedLandingZone = LandingZone(
@@ -92,7 +92,7 @@ private fun LiveCaddyScreenFullPreview() {
                     ),
                     personalizedFor = PersonalizationContext(
                         handicap = 9,
-                        dominantMiss = MissDirection.RIGHT,
+                        dominantMiss = MissDirection.SLICE,
                         clubDistances = mapOf("7i" to 140, "8i" to 130, "PW" to 110),
                         readinessScore = 75
                     )
