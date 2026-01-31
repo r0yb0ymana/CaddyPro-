@@ -288,7 +288,7 @@ class LiveCaddyViewModel @Inject constructor(
      *
      * @param club The club to select
      */
-    private fun selectClub(club: com.example.app.domain.navcaddy.models.Club) {
+    private fun selectClub(club: caddypro.domain.navcaddy.models.Club) {
         // Record timestamp and calculate latency (Task 21)
         clubSelectedAt = System.currentTimeMillis()
         val clubSelectionLatency = clubSelectedAt - shotLoggerOpenedAt
