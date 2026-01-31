@@ -115,7 +115,7 @@ class ShotRecorderTest {
         val shots = (1..10).map { createTestShot(id = "shot-$it") }
         coEvery { repository.getRecentShots(any()) } returns flowOf(shots)
 
-        val result = shotRecorder.getRecentShots(count = 5)
+        val result = shotRecorder.getMostRecentShots(count = 5)
 
         assertEquals(5, result.size)
     }

@@ -74,10 +74,12 @@ class MissPatternStore @Inject constructor(
         lie: Lie,
         isUserTaggedPressure: Boolean = false
     ) {
+        val clubType = inferClubType(clubName)
         val club = Club(
             id = clubId,
             name = clubName,
-            type = inferClubType(clubName)
+            type = clubType,
+            estimatedCarry = inferDefaultCarry(clubType)
         )
 
         val pressure = PressureContext(
@@ -190,7 +192,7 @@ class MissPatternStore @Inject constructor(
      * @return List of recent shots ordered by timestamp descending
      */
     suspend fun getRecentShots(count: Int): List<caddypro.domain.navcaddy.models.Shot> {
-        return shotRecorder.getRecentShots(count)
+        return shotRecorder.getMostRecentShots(count)
     }
 
     /**
@@ -263,12 +265,32 @@ class MissPatternStore @Inject constructor(
         val name = clubName.lowercase()
         return when {
             "driver" in name || "1w" in name -> caddypro.domain.navcaddy.models.ClubType.DRIVER
-            "wood" in name || name.matches(Regex("\\d+w")) -> caddypro.domain.navcaddy.models.ClubType.FAIRWAY_WOOD
+            "wood" in name || name.matches(Regex("\\d+w")) -> caddypro.domain.navcaddy.models.ClubType.WOOD
             "hybrid" in name || name.matches(Regex("\\d+h")) -> caddypro.domain.navcaddy.models.ClubType.HYBRID
             "iron" in name || name.matches(Regex("[3-9]i?")) -> caddypro.domain.navcaddy.models.ClubType.IRON
             "wedge" in name || "pw" in name || "sw" in name || "lw" in name || "gw" in name -> caddypro.domain.navcaddy.models.ClubType.WEDGE
             "putter" in name -> caddypro.domain.navcaddy.models.ClubType.PUTTER
             else -> caddypro.domain.navcaddy.models.ClubType.IRON // Default fallback
+        }
+    }
+
+    /**
+     * Infer default carry distance from club type.
+     *
+     * Provides reasonable default carry distances in meters for each club type.
+     * Used when creating clubs from strings without explicit distance info.
+     *
+     * @param clubType The club type
+     * @return Estimated carry distance in meters
+     */
+    private fun inferDefaultCarry(clubType: caddypro.domain.navcaddy.models.ClubType): Int {
+        return when (clubType) {
+            caddypro.domain.navcaddy.models.ClubType.DRIVER -> 220
+            caddypro.domain.navcaddy.models.ClubType.WOOD -> 190
+            caddypro.domain.navcaddy.models.ClubType.HYBRID -> 170
+            caddypro.domain.navcaddy.models.ClubType.IRON -> 140
+            caddypro.domain.navcaddy.models.ClubType.WEDGE -> 100
+            caddypro.domain.navcaddy.models.ClubType.PUTTER -> 0
         }
     }
 }

@@ -272,12 +272,12 @@ class MissPatternStoreTest {
     @Test
     fun `getRecentShots delegates to recorder`() = runTest {
         val shots = listOf(createTestShot())
-        coEvery { shotRecorder.getRecentShots(10) } returns shots
+        coEvery { shotRecorder.getMostRecentShots(10) } returns shots
 
         val result = store.getRecentShots(10)
 
         assertEquals(shots, result)
-        coVerify { shotRecorder.getRecentShots(10) }
+        coVerify { shotRecorder.getMostRecentShots(10) }
     }
 
     @Test

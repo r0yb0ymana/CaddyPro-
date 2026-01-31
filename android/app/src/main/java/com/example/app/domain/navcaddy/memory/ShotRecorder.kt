@@ -87,7 +87,7 @@ class ShotRecorder @Inject constructor(
      * @param count Maximum number of shots to retrieve
      * @return List of recent shots ordered by timestamp descending
      */
-    suspend fun getRecentShots(count: Int): List<Shot> {
+    suspend fun getMostRecentShots(count: Int): List<Shot> {
         return repository.getRecentShots()
             .first()
             .take(count)
