@@ -125,9 +125,9 @@ class NavCaddyModelsTest {
 
     @Test
     fun `Club equality works correctly`() {
-        val club1 = Club(name = "7-iron", type = ClubType.IRON, loft = 34f, distance = 150)
-        val club2 = Club(name = "7-iron", type = ClubType.IRON, loft = 34f, distance = 150)
-        val club3 = Club(name = "8-iron", type = ClubType.IRON, loft = 38f, distance = 140)
+        val club1 = Club(name = "7-iron", type = ClubType.IRON, loft = 34.0, distance = 150, estimatedCarry = 150)
+        val club2 = Club(name = "7-iron", type = ClubType.IRON, loft = 34.0, distance = 150, estimatedCarry = 150)
+        val club3 = Club(name = "8-iron", type = ClubType.IRON, loft = 38.0, distance = 140, estimatedCarry = 140)
 
         assertEquals(club1, club2)
         assertTrue(club1 != club3)

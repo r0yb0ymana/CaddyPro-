@@ -248,21 +248,21 @@ class GeminiClient(
         // Extract club type and create Club instance
         return when {
             normalized.contains("driver") || normalized == "d" || normalized == "1w" ->
-                Club(name = "Driver", type = ClubType.DRIVER, loft = 10.5f)
+                Club(name = "Driver", type = ClubType.DRIVER, loft = 10.5, estimatedCarry = 230)
 
             normalized.contains("3wood") || normalized == "3w" ->
-                Club(name = "3-Wood", type = ClubType.WOOD, loft = 15f)
+                Club(name = "3-Wood", type = ClubType.WOOD, loft = 15.0, estimatedCarry = 210)
 
             normalized.contains("5wood") || normalized == "5w" ->
-                Club(name = "5-Wood", type = ClubType.WOOD, loft = 18f)
+                Club(name = "5-Wood", type = ClubType.WOOD, loft = 18.0, estimatedCarry = 195)
 
             normalized.contains("hybrid") || normalized.startsWith("h") -> {
                 // Try to extract number (e.g., 3h, 4h)
                 val num = normalized.filter { it.isDigit() }.toIntOrNull() ?: 3
                 when (num) {
-                    3 -> Club(name = "3-Hybrid", type = ClubType.HYBRID, loft = 19f)
-                    4 -> Club(name = "4-Hybrid", type = ClubType.HYBRID, loft = 22f)
-                    5 -> Club(name = "5-Hybrid", type = ClubType.HYBRID, loft = 25f)
+                    3 -> Club(name = "3-Hybrid", type = ClubType.HYBRID, loft = 19.0, estimatedCarry = 185)
+                    4 -> Club(name = "4-Hybrid", type = ClubType.HYBRID, loft = 22.0, estimatedCarry = 175)
+                    5 -> Club(name = "5-Hybrid", type = ClubType.HYBRID, loft = 25.0, estimatedCarry = 165)
                     else -> null
                 }
             }
@@ -271,31 +271,31 @@ class GeminiClient(
                 // Extract number from patterns like "7i", "7iron"
                 val num = normalized.filter { it.isDigit() }.toIntOrNull() ?: return null
                 when (num) {
-                    3 -> Club(name = "3-Iron", type = ClubType.IRON, loft = 20f)
-                    4 -> Club(name = "4-Iron", type = ClubType.IRON, loft = 23f)
-                    5 -> Club(name = "5-Iron", type = ClubType.IRON, loft = 26f)
-                    6 -> Club(name = "6-Iron", type = ClubType.IRON, loft = 29f)
-                    7 -> Club(name = "7-Iron", type = ClubType.IRON, loft = 33f)
-                    8 -> Club(name = "8-Iron", type = ClubType.IRON, loft = 37f)
-                    9 -> Club(name = "9-Iron", type = ClubType.IRON, loft = 41f)
+                    3 -> Club(name = "3-Iron", type = ClubType.IRON, loft = 20.0, estimatedCarry = 180)
+                    4 -> Club(name = "4-Iron", type = ClubType.IRON, loft = 23.0, estimatedCarry = 170)
+                    5 -> Club(name = "5-Iron", type = ClubType.IRON, loft = 26.0, estimatedCarry = 160)
+                    6 -> Club(name = "6-Iron", type = ClubType.IRON, loft = 29.0, estimatedCarry = 150)
+                    7 -> Club(name = "7-Iron", type = ClubType.IRON, loft = 33.0, estimatedCarry = 140)
+                    8 -> Club(name = "8-Iron", type = ClubType.IRON, loft = 37.0, estimatedCarry = 130)
+                    9 -> Club(name = "9-Iron", type = ClubType.IRON, loft = 41.0, estimatedCarry = 120)
                     else -> null
                 }
             }
 
             normalized.contains("pw") || normalized.contains("pitching") ->
-                Club(name = "Pitching Wedge", type = ClubType.WEDGE, loft = 46f)
+                Club(name = "Pitching Wedge", type = ClubType.WEDGE, loft = 46.0, estimatedCarry = 110)
 
             normalized.contains("gw") || normalized.contains("gap") ->
-                Club(name = "Gap Wedge", type = ClubType.WEDGE, loft = 50f)
+                Club(name = "Gap Wedge", type = ClubType.WEDGE, loft = 50.0, estimatedCarry = 100)
 
             normalized.contains("sw") || normalized.contains("sand") ->
-                Club(name = "Sand Wedge", type = ClubType.WEDGE, loft = 54f)
+                Club(name = "Sand Wedge", type = ClubType.WEDGE, loft = 54.0, estimatedCarry = 85)
 
             normalized.contains("lw") || normalized.contains("lob") ->
-                Club(name = "Lob Wedge", type = ClubType.WEDGE, loft = 60f)
+                Club(name = "Lob Wedge", type = ClubType.WEDGE, loft = 60.0, estimatedCarry = 70)
 
             normalized.contains("putter") || normalized == "p" ->
-                Club(name = "Putter", type = ClubType.PUTTER, loft = 3f)
+                Club(name = "Putter", type = ClubType.PUTTER, loft = 3.0, estimatedCarry = 0)
 
             else -> null
         }
