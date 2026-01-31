@@ -344,7 +344,7 @@ class MissPatternStoreTest {
 
         coVerify {
             shotRecorder.recordShot(
-                club = match { it.type == ClubType.FAIRWAY_WOOD },
+                club = match { it.type == ClubType.WOOD },
                 missDirection = any(),
                 lie = any(),
                 pressureContext = any(),
