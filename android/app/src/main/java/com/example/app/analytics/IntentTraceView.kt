@@ -253,6 +253,26 @@ private fun EventItem(
                     DetailRow("Intent", event.intentType)
                     DetailRow("Index", event.suggestionIndex.toString())
                 }
+
+                is AnalyticsEvent.ShotLoggerOpened -> {
+                    DetailRow("Event", "Shot Logger Opened")
+                }
+
+                is AnalyticsEvent.ClubSelected -> {
+                    DetailRow("Club", event.clubType)
+                    LatencyBar(event.latencyMs)
+                }
+
+                is AnalyticsEvent.ShotLogged -> {
+                    DetailRow("Club", event.clubType)
+                    DetailRow("Lie", event.lie)
+                    LatencyBar(event.totalLatencyMs)
+                }
+
+                is AnalyticsEvent.ShotSynced -> {
+                    DetailRow("Count", event.shotCount.toString())
+                    DetailRow("Success", if (event.success) "Yes" else "No")
+                }
             }
         }
     }
@@ -328,6 +348,10 @@ private fun getEventColor(event: AnalyticsEvent): Color {
         is AnalyticsEvent.VoiceTranscription -> Color(0xFFFF9800) // Orange
         is AnalyticsEvent.ClarificationRequested -> Color(0xFFFFEB3B) // Yellow
         is AnalyticsEvent.SuggestionSelected -> Color(0xFF00BCD4) // Cyan
+        is AnalyticsEvent.ShotLoggerOpened -> Color(0xFF8BC34A) // Light Green
+        is AnalyticsEvent.ClubSelected -> Color(0xFF03A9F4) // Light Blue
+        is AnalyticsEvent.ShotLogged -> Color(0xFF673AB7) // Deep Purple
+        is AnalyticsEvent.ShotSynced -> Color(0xFF009688) // Teal
     }
 }
 

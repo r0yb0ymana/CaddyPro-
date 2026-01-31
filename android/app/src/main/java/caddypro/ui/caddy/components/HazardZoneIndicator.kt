@@ -149,7 +149,7 @@ private fun HazardZoneIndicatorBunkerPreview() {
                 type = HazardType.BUNKER,
                 location = HazardLocation("center", 240..260),
                 penaltyStrokes = 0.5,
-                affectedMisses = listOf(MissDirection.SHORT)
+                affectedMisses = listOf(MissDirection.FAT)
             ),
             modifier = Modifier.padding(16.dp)
         )
@@ -165,7 +165,7 @@ private fun HazardZoneIndicatorTreesPreview() {
                 type = HazardType.TREES,
                 location = HazardLocation("long", 280..320),
                 penaltyStrokes = 1.5,
-                affectedMisses = listOf(MissDirection.LONG)
+                affectedMisses = listOf(MissDirection.THIN)
             ),
             modifier = Modifier.padding(16.dp)
         )
@@ -181,7 +181,7 @@ private fun HazardZoneIndicatorRoughPreview() {
                 type = HazardType.PENALTY_ROUGH,
                 location = HazardLocation("short", 150..170),
                 penaltyStrokes = 0.8,
-                affectedMisses = listOf(MissDirection.SHORT)
+                affectedMisses = listOf(MissDirection.FAT)
             ),
             modifier = Modifier.padding(16.dp)
         )

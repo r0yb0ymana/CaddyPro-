@@ -188,7 +188,7 @@ private fun MetricBar(
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(fraction = (metric.value / 100f).coerceIn(0f, 1f))
+                    .fillMaxWidth(fraction = (metric.value.toFloat() / 100f).coerceIn(0f, 1f))
                     .height(12.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(barColor)

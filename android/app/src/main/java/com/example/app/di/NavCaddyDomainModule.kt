@@ -84,10 +84,10 @@ object NavCaddyDomainModule {
     fun providePrerequisiteChecker(): PrerequisiteChecker {
         // TODO: Implement real PrerequisiteChecker with data sources
         return object : PrerequisiteChecker {
-            override suspend fun checkAll(prerequisites: List<Prerequisite>): List<Prerequisite> {
-                // For now, return empty list (no missing prerequisites)
+            override suspend fun check(prerequisite: Prerequisite): Boolean {
+                // For now, always return true (prerequisite satisfied)
                 // In production, this would check actual data sources
-                return emptyList()
+                return true
             }
         }
     }
