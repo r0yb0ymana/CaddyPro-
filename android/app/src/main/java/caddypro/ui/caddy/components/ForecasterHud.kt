@@ -211,8 +211,7 @@ private fun PreviewForecasterHudCompact() {
                 timestamp = System.currentTimeMillis(),
                 location = Location(
                     latitude = 37.7749,
-                    longitude = -122.4194,
-                    name = "Test Course"
+                    longitude = -122.4194
                 )
             ),
             isExpanded = false,
@@ -234,8 +233,7 @@ private fun PreviewForecasterHudExpanded() {
                 timestamp = System.currentTimeMillis(),
                 location = Location(
                     latitude = 37.7749,
-                    longitude = -122.4194,
-                    name = "Test Course"
+                    longitude = -122.4194
                 )
             ),
             isExpanded = true,
@@ -259,8 +257,7 @@ private fun PreviewForecasterHudColdHeadwind() {
                 timestamp = System.currentTimeMillis(),
                 location = Location(
                     latitude = 37.7749,
-                    longitude = -122.4194,
-                    name = "Test Course"
+                    longitude = -122.4194
                 )
             ),
             isExpanded = true,
@@ -284,8 +281,7 @@ private fun PreviewForecasterHudHotTailwind() {
                 timestamp = System.currentTimeMillis(),
                 location = Location(
                     latitude = 37.7749,
-                    longitude = -122.4194,
-                    name = "Test Course"
+                    longitude = -122.4194
                 )
             ),
             isExpanded = true,
