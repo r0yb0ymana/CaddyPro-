@@ -116,7 +116,7 @@ fun ConditionsChip(
             ),
             border = AssistChipDefaults.assistChipBorder(
                 borderColor = contentColor.copy(alpha = 0.5f),
-                borderWidth = 1.dp
+                enabled = true
             )
         )
 
