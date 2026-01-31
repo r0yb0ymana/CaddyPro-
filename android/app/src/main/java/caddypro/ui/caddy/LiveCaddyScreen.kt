@@ -218,7 +218,7 @@ fun LiveCaddyScreen(
  * @param modifier Optional modifier for the layout
  */
 @Composable
-private fun LiveCaddyContent(
+internal fun LiveCaddyContent(
     state: LiveCaddyState,
     onAction: (LiveCaddyAction) -> Unit,
     modifier: Modifier = Modifier
