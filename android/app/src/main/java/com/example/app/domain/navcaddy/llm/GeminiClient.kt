@@ -143,8 +143,11 @@ class GeminiClient(
                 appendLine("# Conversation Context")
                 appendLine()
                 context.conversationHistory.takeLast(3).forEach { turn ->
-                    appendLine("User: ${turn.userInput}")
-                    appendLine("Assistant: ${turn.assistantResponse}")
+                    val role = when (turn.role) {
+                        Role.USER -> "User"
+                        Role.ASSISTANT -> "Assistant"
+                    }
+                    appendLine("$role: ${turn.content}")
                     appendLine()
                 }
             }

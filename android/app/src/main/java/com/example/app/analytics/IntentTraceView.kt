@@ -318,6 +318,7 @@ private fun LatencyBar(
     }
 }
 
+@Composable
 private fun getEventColor(event: AnalyticsEvent): Color {
     return when (event) {
         is AnalyticsEvent.InputReceived -> Color(0xFF4CAF50) // Green

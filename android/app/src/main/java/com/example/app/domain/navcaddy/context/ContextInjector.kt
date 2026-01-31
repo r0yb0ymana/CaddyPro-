@@ -119,7 +119,7 @@ object ContextInjector {
      * @return Map of context keys to values
      */
     fun extractContextHints(context: SessionContext): Map<String, String> {
-        val hints = mutableMapOf<String>()
+        val hints = mutableMapOf<String, String>()
 
         context.lastShot?.let { shot ->
             hints["last_club"] = shot.club.name

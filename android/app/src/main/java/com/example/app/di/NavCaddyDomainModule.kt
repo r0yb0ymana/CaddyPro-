@@ -9,6 +9,7 @@ import caddypro.domain.navcaddy.navigation.NoOpNavCaddyNavigator
 import caddypro.domain.navcaddy.normalizer.InputNormalizer
 import caddypro.domain.navcaddy.routing.PrerequisiteChecker
 import caddypro.domain.navcaddy.routing.RoutingOrchestrator
+import caddypro.domain.navcaddy.routing.Prerequisite
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -83,7 +84,7 @@ object NavCaddyDomainModule {
     fun providePrerequisiteChecker(): PrerequisiteChecker {
         // TODO: Implement real PrerequisiteChecker with data sources
         return object : PrerequisiteChecker {
-            override suspend fun checkAll(prerequisites: List<caddypro.domain.navcaddy.routing.Prerequisite>): List<caddypro.domain.navcaddy.routing.Prerequisite> {
+            override suspend fun checkAll(prerequisites: List<Prerequisite>): List<Prerequisite> {
                 // For now, return empty list (no missing prerequisites)
                 // In production, this would check actual data sources
                 return emptyList()

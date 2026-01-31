@@ -240,6 +240,8 @@ class ClarificationHandler {
             IntentType.SETTINGS_CHANGE -> "Settings"
             IntentType.HELP_REQUEST -> "Get Help"
             IntentType.FEEDBACK -> "Send Feedback"
+            IntentType.BAILOUT_QUERY -> "Check Bailout"
+            IntentType.READINESS_CHECK -> "Check Readiness"
         }
 
         return IntentSuggestion(
