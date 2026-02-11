@@ -1,0 +1,54 @@
+default_platform(:android)
+
+platform :android do
+  desc "Run tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  desc "Submit a new Beta Build to Firebase App Distribution"
+  lane :beta do
+    gradle(task: "assemble", build_type: "Release")
+    firebase_app_distribution(
+      app: ENV["FIREBASE_APP_ID"],
+      groups: "testers",
+      release_notes: "Beta build from Fastlane"
+    )
+  end
+
+  desc "Deploy a new version to the Google Play"
+  # Usage: fastlane deploy track:alpha
+  lane :deploy do |options|
+    track = options[:track] || "internal"
+    
+    ensure_git_status_clean
+    changelog = changelog_from_git_commits(commits_count: 10, merge_commit_filtering: "exclude_merges")
+    
+    gradle(task: "bundle", build_type: "Release")
+    
+    upload_to_play_store(
+      track: track,
+      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"],
+      release_notes: changelog
+    )
+  end
+
+  desc "Promote a version from one track to another"
+  # Usage: fastlane promote from:internal to:production
+  lane :promote do |options|
+    from_track = options[:from] || "internal"
+    to_track = options[:to] || "production"
+
+    upload_to_play_store(
+      track: to_track,
+      track_promote_to: to_track,
+      from_track: from_track,
+      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"],
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

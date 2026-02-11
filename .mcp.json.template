@@ -1,0 +1,82 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/mcp.json",
+  "description": "MCP server configuration template for claude-in-the-loop projects",
+  "mcpServers": {
+    "filesystem": {
+      "comment": "Access to project files (already available in Claude Code)",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/project"]
+    },
+    "postgres": {
+      "comment": "PostgreSQL database access",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/dbname"
+      }
+    },
+    "sqlite": {
+      "comment": "SQLite database access",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "/path/to/database.db"]
+    },
+    "github": {
+      "comment": "GitHub API access (issues, PRs, etc.)",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "ghp_your_token_here"
+      }
+    },
+    "puppeteer": {
+      "comment": "Browser automation for screenshots and testing",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+    },
+    "fetch": {
+      "comment": "HTTP requests to external APIs",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "brave-search": {
+      "comment": "Web search via Brave Search API",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "your_brave_api_key_here"
+      }
+    },
+    "memory": {
+      "comment": "Persistent memory across Claude sessions",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "slack": {
+      "comment": "Slack workspace integration",
+      "disabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-your-token",
+        "SLACK_TEAM_ID": "T01234567"
+      }
+    },
+    "custom-tool": {
+      "comment": "Your custom MCP server",
+      "disabled": true,
+      "command": "node",
+      "args": ["path/to/your/mcp-server.js"],
+      "env": {
+        "CUSTOM_CONFIG": "value"
+      }
+    }
+  }
+}
